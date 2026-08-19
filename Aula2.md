@@ -7,6 +7,12 @@ O objetivo desta aula prática é capacitar você a administrar usuários, grupo
 * Compreender e manipular permissões de leitura, escrita e execução usando a notação simbólica e a notação octal (numérica).
 * Controlar a posse de arquivos e pastas com os utilitários `chown` e `chgrp`.
 * Validar as restrições de acesso simulando diferentes perfis de usuário no terminal.
+O objetivo desta aula prática é capacitar você a administrar usuários, grupos e permissões de acesso a arquivos e diretórios no Ubuntu Server 26.04 LTS. Ao final desta prática, você será capaz de:
+* Criar e gerenciar usuários e senhas via terminal.
+* Organizar usuários em grupos de trabalho.
+* Compreender e manipular permissões de leitura, escrita e execução usando a notação simbólica e a notação octal (numérica).
+* Controlar a posse de arquivos e pastas com os utilitários `chown` e `chgrp`.
+* Validar as restrições de acesso simulando diferentes perfis de usuário no terminal.
 
 ---
 
@@ -29,6 +35,7 @@ As permissões básicas aplicadas a cada uma dessas três esferas são:
 > **Importante:** Para realizar esta prática, faça login com o usuário **`administrador`** e a senha **`adminifal`** configurados na Aula 1. Sempre que precisar de privilégios elevados, utilize o prefixo `sudo`.
 
 ### Passo 1: Criação dos Novos Usuários no Sistema
+Nesta etapa, criaremos quatro novas contas de usuário que representarão colaboradores da nossa infraestrutura fictícia: `fulano`, `cicrano`, `beltrano` e `novato`.
 Nesta etapa, criaremos quatro novas contas de usuário que representarão colaboradores da nossa infraestrutura fictícia: `fulano`, `cicrano`, `beltrano` e `novato`.
 
 Execute os comandos a seguir no console do seu servidor. O utilitário `adduser` criará automaticamente o diretório de início (`/home/<usuario>`), definirá o interpretador de comandos padrão (bash) e solicitará a criação de uma senha individual para cada conta.

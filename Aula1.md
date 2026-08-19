@@ -86,9 +86,9 @@ Criaremos as seguintes partições:
 Insira as seguintes credenciais obrigatórias para padronização do laboratório:
 * **Your name:** `Administrador`
 * **Your server's name:** `ubuntu_server`
-* **Pick a username:** `administrador` *(Não utilize "redes" ou "aluno")*
-* **Choose a password:** `adminifal`
-* **Confirm your password:** `adminifal`
+* **Pick a username:** `administrador`
+* **Choose a passworC:** `adminifal`
+* **Confirm your passworC:** `adminifal`
 
 ### 4.6. Serviços Adicionais (SSH)
 * Na tela de SSH, marque a opção **[X] Install OpenSSH Server** pressionando a barra de espaço. Isso é crucial para as práticas de acesso remoto futuras.
