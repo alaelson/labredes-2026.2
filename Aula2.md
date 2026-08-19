@@ -1,23 +1,23 @@
 # Aula 02: Administração de Usuários, Grupos e Permissões no Linux
 
 ## 1. Objetivos da Aula
-O objetivo desta aula prática é capacitar você a administrar usuários, grupos e permissões de acesso a arquivos e diretórios no Ubuntu Server 26.04 LTS [76, 85]. Ao final desta prática, você será capaz de:
-* Criar e gerenciar usuários e senhas via terminal [76].
-* Organizar usuários em grupos de trabalho [76].
-* Compreender e manipular permissões de leitura, escrita e execução usando a notação simbólica e a notação octal (numérica) [76].
-* Controlar a posse de arquivos e pastas com os utilitários `chown` e `chgrp` [76].
-* Validar as restrições de acesso simulando diferentes perfis de usuário no terminal [75, 76].
+O objetivo desta aula prática é capacitar você a administrar usuários, grupos e permissões de acesso a arquivos e diretórios no Ubuntu Server 26.04 LTS. Ao final desta prática, você será capaz de:
+* Criar e gerenciar usuários e senhas via terminal.
+* Organizar usuários em grupos de trabalho.
+* Compreender e manipular permissões de leitura, escrita e execução usando a notação simbólica e a notação octal (numérica).
+* Controlar a posse de arquivos e pastas com os utilitários `chown` e `chgrp`.
+* Validar as restrições de acesso simulando diferentes perfis de usuário no terminal.
 
 ---
 
 ## 2. Contexto Teórico de Suporte
 
-No sistema operacional Linux, a segurança e a integridade dos dados baseiam-se em um modelo rígido de propriedade e privilégios [76]. Todo arquivo ou diretório possui exatamente:
+No sistema operacional Linux, a segurança e a integridade dos dados baseiam-se em um modelo rígido de propriedade e privilégios. Todo arquivo ou diretório possui exatamente:
 1. **Um Usuário Dono (Owner/User - `u`):** Normalmente quem criou o arquivo.
 2. **Um Grupo Associado (Group - `g`):** Um conjunto de usuários que compartilham permissões em comum.
 3. **Outros (Others - `o`):** Qualquer outro usuário do sistema que não seja o dono nem pertença ao grupo associado.
 
-As permissões básicas aplicadas a cada uma dessas três esferas são [76]:
+As permissões básicas aplicadas a cada uma dessas três esferas são:
 * **Leitura (Read - `r` ou `4`):** Permite ler o conteúdo de um arquivo ou listar os arquivos de um diretório.
 * **Escrita (Write - `w` ou `2`):** Permite modificar ou apagar um arquivo, ou criar/remover arquivos dentro de um diretório.
 * **Execução (Execute - `x` ou `1`):** Permite executar um arquivo como programa/script ou entrar (navegar) em um diretório com o comando `cd`.
@@ -26,10 +26,10 @@ As permissões básicas aplicadas a cada uma dessas três esferas são [76]:
 
 ## 3. Roteiro Prático Passo a Passo
 
-> **Importante:** Para realizar esta prática, faça login com o usuário **`administrador`** e a senha **`adminifal`** configurados na Aula 1 [36]. Sempre que precisar de privilégios elevados, utilize o prefixo `sudo` [76].
+> **Importante:** Para realizar esta prática, faça login com o usuário **`administrador`** e a senha **`adminifal`** configurados na Aula 1. Sempre que precisar de privilégios elevados, utilize o prefixo `sudo`.
 
 ### Passo 1: Criação dos Novos Usuários no Sistema
-Nesta etapa, criaremos quatro novas contas de usuário que representarão colaboradores da nossa infraestrutura fictícia: `fulano`, `cicrano`, `beltrano` e `novato` [76].
+Nesta etapa, criaremos quatro novas contas de usuário que representarão colaboradores da nossa infraestrutura fictícia: `fulano`, `cicrano`, `beltrano` e `novato`.
 
 Execute os comandos a seguir no console do seu servidor. O utilitário `adduser` criará automaticamente o diretório de início (`/home/<usuario>`), definirá o interpretador de comandos padrão (bash) e solicitará a criação de uma senha individual para cada conta.
 
@@ -75,13 +75,13 @@ novato:x:1004:1004:,,,:/home/novato:/bin/bash
 ---
 
 ### Passo 2: Criação e Organização de Grupos de Trabalho
-Para gerenciar permissões de forma escalável, os usuários devem ser agrupados por funções [76]. Criaremos um grupo chamado `devs` que reunirá a equipe de desenvolvimento de software [76]:
+Para gerenciar permissões de forma escalável, os usuários devem ser agrupados por funções. Criaremos um grupo chamado `devs` que reunirá a equipe de desenvolvimento de software:
 
 ```bash
 administrador@ubuntu_server:~$ sudo groupadd devs
 ```
 
-Agora, adicionaremos os usuários `fulano`, `cicrano` e `beltrano` a este novo grupo utilizando o comando `usermod` com as flags `-a` (append/adicionar) e `-G` (group/grupo) [76]:
+Agora, adicionaremos os usuários `fulano`, `cicrano` e `beltrano` a este novo grupo utilizando o comando `usermod` com as flags `-a` (append/adicionar) e `-G` (group/grupo):
 ```bash
 administrador@ubuntu_server:~$ sudo usermod -aG devs fulano
 administrador@ubuntu_server:~$ sudo usermod -aG devs cicrano
@@ -99,7 +99,7 @@ devs:x:1005:fulano,cicrano,beltrano
 ---
 
 ### Passo 3: Criação do Diretório de Trabalho Compartilhado
-Criaremos uma pasta no diretório raiz do sistema chamada `/srv/projeto`. Esta pasta servirá como repositório de desenvolvimento comum do grupo de trabalho [76, 83]:
+Criaremos uma pasta no diretório raiz do sistema chamada `/srv/projeto`. Esta pasta servirá como repositório de desenvolvimento comum do grupo de trabalho:
 
 ```bash
 administrador@ubuntu_server:~$ sudo mkdir -p /srv/projeto
@@ -120,7 +120,7 @@ drwxr-xr-x 2 root root 4096 Aug 12 11:30 /srv/projeto
 ---
 
 ### Passo 4: Mudança de Dono e de Grupo Associado (`chown` e `chgrp`)
-Como o diretório `/srv/projeto` deve ser administrado pelo usuário `administrador` e manipulado pela equipe de desenvolvimento (`devs`), precisamos atualizar a posse deste diretório [76]:
+Como o diretório `/srv/projeto` deve ser administrado pelo usuário `administrador` e manipulado pela equipe de desenvolvimento (`devs`), precisamos atualizar a posse deste diretório:
 
 1. Altere o usuário dono para `administrador`:
 ```bash
@@ -141,7 +141,7 @@ drwxr-xr-x 2 administrador devs 4096 Aug 12 11:30 /srv/projeto
 ---
 
 ### Passo 5: Configuração das Permissões de Acesso (Modo Octal)
-Queremos implementar a seguinte política de segurança no diretório `/srv/projeto` [82]:
+Queremos implementar a seguinte política de segurança no diretório `/srv/projeto`:
 1. **O Dono (`administrador`):** Deve ter controle total (Leitura, Escrita e Execução) $\rightarrow$ `rwx` (Valor octal: $4+2+1 = \mathbf{7}$).
 2. **O Grupo Associado (`devs`):** Deve ter controle de colaboração (Leitura, Escrita para criar/editar código e Execução para entrar na pasta) $\rightarrow$ `rwx` (Valor octal: $4+2+1 = \mathbf{7}$).
 3. **Outros (qualquer outro, incluindo `novato`):** Não devem sequer visualizar ou listar o conteúdo da pasta de desenvolvimento $\rightarrow$ `---` (Valor octal: $0+0+0 = \mathbf{0}$).
@@ -183,7 +183,18 @@ administrador@ubuntu_server:~$ ls -l /srv/projeto/config_redes.txt
 
 ## 4. Testes e Validação do Ambiente (Laboratório)
 
-Para testar o funcionamento das permissões sem precisar sair fisicamente da sua sessão atual, utilize o comando `su` (substitute user) acompanhado do hífen `-` (que carrega o ambiente do respectivo usuário) [75, 76]:
+Para testar o funcionamento das permissões sem precisar sair fisicamente da sua sessão atual, utilize o comando `su` (substitute user) acompanhado do hífen `-` (que carrega o ambiente do respectivo usuário):
+
+> ### 🔍 Observação Técnica de Extrema Importância: `su <usuario>` vs `su - <usuario>`
+> Nos laboratórios práticos, é muito comum cometer o erro de digitar apenas `su administrador` ou `su fulano`. Contudo, há uma diferença sutil, mas crítica, no comportamento do sistema:
+> 
+> *   **`su nome_usuario` (sem o hífen):** Altera a identidade do usuário atual no terminal, mas **preserva o diretório de trabalho anterior e as variáveis de ambiente** (como `PATH`, `HOME` e `SHELL`) do usuário de origem. Você assume a identidade do novo usuário, mas continua operando "dentro do contexto" e do caminho de diretórios do usuário anterior.
+> *   **`su - nome_usuario` (com o hífen):** Realiza uma **sessão de login completa (Login Shell)**. O sistema limpa as variáveis antigas, altera o diretório atual diretamente para a pasta pessoal (`/home/nome_usuario`) do novo usuário e carrega todos os scripts de inicialização específicos dele (como `.bashrc` e `.profile`).
+> 
+> **Por que sempre usamos `su -` nos testes?**
+> Para testar permissões de diretórios com isolamento real, precisamos que o sistema carregue o ambiente limpo do usuário. Se usarmos apenas `su`, o terminal tentará manter o diretório atual do usuário anterior, o que pode gerar mensagens de erro confusas ou falsos positivos de acesso devido ao contexto herdado.
+
+
 
 ### Teste A: Validação com Usuário do Grupo (`fulano`)
 1. Alterne para a sessão do usuário `fulano`:
@@ -208,7 +219,7 @@ fulano@ubuntu_server:/srv/projeto$ cat config_redes.txt
 Especificacao tecnica do roteador de borda
 Revisado por Fulano
 ```
-*Sucesso! O usuário `fulano` teve acesso total de leitura e escrita pois pertence ao grupo `devs` [76].*
+*Sucesso! O usuário `fulano` teve acesso total de leitura e escrita pois pertence ao grupo `devs`.*
 
 4. Saia da sessão do usuário atual para retornar ao administrador:
 ```bash
@@ -238,7 +249,7 @@ novato@ubuntu_server:~$ cd /srv/projeto
 novato@ubuntu_server:~$ ls -l /srv/projeto
 ls: cannot open directory '/srv/projeto': Permission denied
 ```
-*Sucesso! O sistema negou completamente o acesso ao usuário `novato` conforme as regras de controle estabelecidas no passo 5 [76].*
+*Sucesso! O sistema negou completamente o acesso ao usuário `novato` conforme as regras de controle estabelecidas no passo 5.*
 
 4. Saia do terminal para voltar ao administrador:
 ```bash
@@ -265,12 +276,12 @@ Para consolidar as competências adquiridas, cada aluno ou grupo deverá executa
 ---
 
 ## 6. Modelo de Relatório Técnico (Entrega via GitHub)
-As entregas de laboratório devem ser feitas sob a forma de um relatório técnico individual publicado no repositório GitHub dos alunos, respeitando estritamente a seguinte estrutura de 7 tópicos [86, 87]:
+As entregas de laboratório devem ser feitas sob a forma de um relatório técnico individual publicado no repositório GitHub dos alunos, respeitando estritamente a seguinte estrutura de 7 tópicos:
 
-1. **Identificação:** Título da prática, nome completo do aluno, matrícula, turma e data de realização [87].
-2. **Objetivo:** Explicação clara do que se pretendia validar nesta atividade prática de administração de usuários e permissões [87].
-3. **Ambiente:** Especificação das versões do sistema operacional hospedeiro, hipervisor VirtualBox e a distribuição do Linux Server configurada [87].
-4. **Procedimento:** Descrição textual de todas as etapas efetuadas para a criação das contas, grupos, diretórios e atribuição de permissões [87].
-5. **Testes e Evidências:** Inserção de capturas de tela (prints) ou cópias integrais do terminal demonstrando o sucesso dos testes dos passos A e B e o resultado do Exercício Prático de Fixação [87].
-6. **Problemas e Soluções:** Registro de quaisquer erros de permissão ou de comandos encontrados durante a execução da prática e as soluções aplicadas [87].
-7. **Conclusão:** Síntese crítica sobre a importância do gerenciamento correto de permissões de diretórios para a segurança e integridade de servidores Linux corporativos [87].
+1. **Identificação:** Título da prática, nome completo do aluno, matrícula, turma e data de realização.
+2. **Objetivo:** Explicação clara do que se pretendia validar nesta atividade prática de administração de usuários e permissões.
+3. **Ambiente:** Especificação das versões do sistema operacional hospedeiro, hipervisor VirtualBox e a distribuição do Linux Server configurada.
+4. **Procedimento:** Descrição textual de todas as etapas efetuadas para a criação das contas, grupos, diretórios e atribuição de permissões.
+5. **Testes e Evidências:** Inserção de capturas de tela (prints) ou cópias integrais do terminal demonstrando o sucesso dos testes dos passos A e B e o resultado do Exercício Prático de Fixação.
+6. **Problemas e Soluções:** Registro de quaisquer erros de permissão ou de comandos encontrados durante a execução da prática e as soluções aplicadas.
+7. **Conclusão:** Síntese crítica sobre a importância do gerenciamento correto de permissões de diretórios para a segurança e integridade de servidores Linux corporativos.

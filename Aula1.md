@@ -1,139 +1,125 @@
-# Aula 01 - Introdução à Virtualização e Instalação do Ubuntu Server 26.04
+# Aula Prática 01: Introdução à Virtualização e Instalação do Ubuntu Server 26.04
 
-Este roteiro faz parte do repositório de aulas práticas **labredes-bsi-2026.02** da disciplina de Laboratório de Sistemas Operacionais e Redes (LSOR) do Bacharelado em Sistemas de Informação.
-
----
-
-## 1. Objetivos da Prática
-* Compreender os conceitos básicos de virtualização e o papel do hipervisor (VirtualBox).
-* Organizar o ambiente local de laboratório seguindo o padrão estabelecido.
-* Criar e configurar uma Máquina Virtual (VM) com os recursos mínimos necessários.
-* Realizar a instalação limpa do **Ubuntu Server 26.04 LTS** utilizando particionamento personalizado de disco (LVM).
-* Configurar o usuário administrativo padrão para o semestre.
+## 1. Objetivos da Aula
+* Compreender os conceitos básicos de virtualização (Hipervisor, Máquina Virtual, Isolamento de Recursos).
+* Preparar o ambiente de trabalho local utilizando o Oracle VM VirtualBox.
+* Realizar a instalação limpa e personalizada do sistema operacional de rede Ubuntu Server 26.04 LTS utilizando particionamento LVM.
+* Validar a instalação por meio do primeiro login e atualização dos repositórios de pacotes.
 
 ---
 
-## 2. Preparação do Ambiente no Host (Computador Físico)
-Antes de abrir o VirtualBox, você deve garantir que a estrutura de diretórios do laboratório está devidamente organizada para evitar perda de dados e problemas de permissão:
+## 2. Preparação do Ambiente de Trabalho (Host Windows)
+Para garantir a organização e o desempenho dos computadores do laboratório, utilizaremos o drive `C:` local das máquinas host. Siga rigorosamente a estrutura de diretórios abaixo:
 
-1. Acesse o disco local do host e navegue até a pasta de originais:
-   * **Caminho:** `D:\2026\BSI\VM\original`
-2. Certifique-se de que o arquivo de imagem do sistema operacional está presente nesta pasta:
-   * **Arquivo:** `ubuntu-26.04-live-server-amd64.iso`
-3. Crie a sua pasta de trabalho individual onde todos os arquivos da sua VM serão armazenados:
-   * **Caminho:** `D:\2026\BSI\VM\<NomeDoAluno>`
-   * *Substitua `<NomeDoAluno>` pelo seu primeiro e último nome (ex: `D:\2026\BSI\VM\JoaoSilva`).*
-4. Dentro da sua pasta, crie um diretório específico para esta máquina:
-   * **Caminho:** `D:\2026\BSI\VM\<NomeDoAluno>\ubuntu_server`
+1. **Obter a Imagem ISO:**
+   * Pressione as teclas `Win + R` no teclado do Windows.
+   * Digite o caminho do servidor de arquivos do laboratório: `\\172.20.22.179\labredes` e pressione Enter.
+   * Copie o arquivo de imagem `ubuntu-26.04-live-server-amd64.iso` para a sua máquina física.
+
+2. **Organização de Pastas no Host:**
+   * Crie o diretório de originais: `C:\2026\BSI\VM\original`.
+   * Mova a imagem ISO copiada para este diretório: `C:\2026\BSI\VM\original\ubuntu-26.04-live-server-amd64.iso`.
+   * Crie o diretório de trabalho do aluno: `C:\2026\BSI\VM\<NomeDoAluno>` (substitua `<NomeDoAluno>` pelo seu primeiro e último nome, sem espaços ou acentos).
+   * Dentro da sua pasta, crie a subpasta para a máquina virtual: `C:\2026\BSI\VM\<NomeDoAluno>\ubuntu_server`.
 
 ---
 
-## 3. Criação da Máquina Virtual no VirtualBox
-Abra o VirtualBox e clique em **Novo** (New) para criar a VM. Utilize os seguintes parâmetros técnicos:
+## 3. Criação e Configuração da VM no VirtualBox
+Abra o Oracle VM VirtualBox e clique em **Novo** para configurar a máquina virtual com os seguintes parâmetros:
 
 * **Nome:** `ubuntu_server`
-* **Pasta da VM (Folder):** Selecione a pasta que você criou no passo anterior (`D:\2026\BSI\VM\<NomeDoAluno>\ubuntu_server`).
+* **Pasta da VM:** `C:\2026\BSI\VM\<NomeDoAluno>\ubuntu_server`
 * **Tipo:** `Linux`
 * **Versão:** `Ubuntu (64-bit)`
-* **Memória RAM:** **512 MB**
-* **Processador:** **1 CPU**
-* **Disco Rígido:**
-  * Escolha a opção **Criar um novo disco rígido virtual agora**.
-  * **Tipo de arquivo:** `VDI (VirtualBox Disk Image)`.
-  * **Armazenamento:** `Dinamicamente Alocado` (Dynamically allocated).
-  * **Tamanho do disco:** **32 GB**.
+* **Tamanho de Memória (RAM):** `512 MB`
+* **Processador:** `1 CPU`
+* **Disco Rígido:** Escolha "Criar um novo disco rígido virtual agora".
+  * **Tipo de arquivo:** `VDI (VirtualBox Disk Image)`
+  * **Armazenamento:** `Dinamicamente Alocado`
+  * **Tamanho:** `32 GB`
 
 ---
 
-## 4. Configurações Finais pré-Boot
-Antes de iniciar a máquina pela primeira vez:
+## 4. Instalação Passo a Passo do Ubuntu Server
+Com a VM criada, clique em **Configurações** -> **Armazenamento**. Em "Controladora: IDE", selecione o ícone de disco óptico vazio e monte o arquivo ISO localizado em `C:\2026\BSI\VM\original\ubuntu-26.04-live-server-amd64.iso`.
 
-1. Selecione a VM `ubuntu_server` e clique em **Configurações** (Settings).
-2. Vá em **Armazenamento** (Storage).
-3. Selecione a controladora IDE (Disco Óptico Vazio).
-4. No painel lateral direito, clique no ícone do CD e selecione **Escolher um arquivo de disco...** (Choose a virtual optical disk file).
-5. Selecione a imagem ISO localizada na pasta de originais:
-   * `D:\2026\BSI\VM\original\ubuntu-26.04-live-server-amd64.iso`
-6. Clique em **OK** para salvar as configurações.
+Inicie a máquina virtual e execute os seguintes passos no instalador interativo:
 
----
+### 4.1. Idioma e Teclado
+* **Language:** Selecione `English` (recomendado para servidores).
+* **Keyboard Configuration:** Em Layout e Variant, configure para `Portuguese (Brazil)` ou o layout correspondente ao teclado físico do seu terminal.
 
-## 5. Processo de Instalação do Ubuntu Server
-Inicie a VM e siga as instruções abaixo detalhadamente:
+### 4.2. Conexão de Rede
+* O instalador identificará a interface `enp0s3` e tentará obter uma configuração de rede padrão automaticamente via DHCP.
+* Verifique se ela exibe um endereço IP no formato `10.0.2.15/24` ou similar antes de avançar.
 
-### 5.1. Inicialização, Idioma e Teclado
-1. No menu de boot do instalador, selecione a opção padrão para iniciar o instalador.
-2. **Idioma (Language):** Selecione o seu idioma de preferência (recomendado: **English** para familiarização com termos técnicos de servidores).
-3. **Teclado (Keyboard):** Configure o layout de acordo com o teclado físico do laboratório:
-   * **Layout:** `Portuguese (Brazil)` ou `English (US)` dependendo da máquina física.
-   * Selecione **Done** e pressione Enter.
+### 4.3. Proxy e Mirror
+* **Proxy:** Deixe em branco (Apenas clique em `Done`).
+* **Mirror:** Mantenha o endereço padrão do espelho do Ubuntu e clique em `Done`.
 
-### 5.2. Configurações de Rede, Proxy e Mirror
-1. **Rede:** O instalador detectará a interface virtual (ex: `enp0s3`) e tentará obter um endereço IP automaticamente via DHCP. Aguarde a confirmação do endereço de rede e selecione **Done**.
-2. **Proxy:** Deixe em branco (Apenas selecione **Done**).
-3. **Mirror:** Mantenha o endereço padrão do espelho de repositórios do Ubuntu e selecione **Done**.
+### 4.4. Particionamento do Sistema de Arquivos (Customizado LVM)
+Não utilizaremos a instalação automática em disco inteiro. Selecione a opção **Custom storage layout** (ou manual) para criarmos um esquema de particionamento flexível utilizando LVM (Logical Volume Manager):
 
-### 5.3. Particionamento Personalizado do Disco (FileSystem Setup)
-Para fins de aprendizado e flexibilidade de administração, **NÃO** utilizaremos o particionamento automático padrão. Siga os passos para configurar o particionamento via LVM manualmente:
+Criaremos as seguintes partições:
+1. **Partição de Boot (/boot):**
+   * **Tamanho:** `1 GB` (1024M)
+   * **Formato:** `ext4`
+   * **Ponto de Montagem:** `/boot`
 
-1. Na tela de *Filesystem setup*, selecione a opção **Custom storage layout** (ou manual) e selecione **Done**.
-2. Na tela de resumo de dispositivos, selecione o disco livre de **32 GB** e escolha a opção para criar a estrutura LVM.
-3. Crie exatamente **3 partições** com as seguintes especificações:
-   * **Partição 1 (/boot):**
-     * **Tamanho:** `1 GB` (1.000M)
-     * **Formato:** `ext4`
-     * **Ponto de Montagem (Mount):** `/boot`
-   * **Partição 2 (Root /):**
-     * **Tamanho:** `29 GB`
-     * **Formato:** `ext4`
-     * **Ponto de Montagem (Mount):** `/`
-   * **Partição 3 (SWAP):**
-     * **Tamanho:** `2 GB`
-     * **Formato:** `swap`
-     * *(A memória SWAP funciona como área de troca de memória RAM no disco).*
-4. Revise o sumário das partições criadas. Certifique-se de que correspondem aos tamanhos exatos acima.
-5. Selecione **Done**, confirme o aviso de destruição de dados no disco e prossiga.
+2. **Grupo de Volumes LVM (ubuntu-vg):**
+   * Crie o Volume Group com o restante do espaço em disco.
 
-### 5.4. Configuração do Perfil de Usuário (Profile Setup)
-Preencha os dados do administrador do sistema seguindo estritamente as definições da turma:
+3. **Volume Lógico Root (/):**
+   * **Nome:** `ubuntu-lv`
+   * **Tamanho:** `29 GB`
+   * **Formato:** `ext4`
+   * **Ponto de Montagem:** `/`
 
+4. **Volume Lógico Swap (SWAP):**
+   * **Nome:** `swap-lv` (ou similar)
+   * **Tamanho:** `2 GB` (ou o restante do espaço livre de ~2GB)
+   * **Formato:** `swap`
+
+*Selecione `Done` e confirme a gravação das alterações no disco.*
+
+### 4.5. Configuração de Perfil (Profile Setup)
+Insira as seguintes credenciais obrigatórias para padronização do laboratório:
 * **Your name:** `Administrador`
 * **Your server's name:** `ubuntu_server`
-* **Pick a username:** `administrador`
+* **Pick a username:** `administrador` *(Não utilize "redes" ou "aluno")*
 * **Choose a password:** `adminifal`
 * **Confirm your password:** `adminifal`
 
-*Atenção: Não utilize o usuário padrão antigo 'redes'. Toda a administração a partir de agora será conduzida sob o usuário 'administrador'.*
-
-### 5.5. Serviços Adicionais e Conclusão
-1. Na tela de seleção do **SSH**, marque a opção **Install OpenSSH server** pressionando a barra de espaço. *Este serviço é fundamental para que possamos acessar o servidor remotamente nas próximas aulas.*
-2. Na tela de seleção de snaps/serviços opcionais, não selecione nenhum pacote. Vá direto para **Done**.
-3. Aguarde o término da instalação (cópia dos arquivos e downloads de atualizações de segurança).
-4. Assim que o processo terminar, selecione **Reboot Now** e pressione Enter.
-5. *Nota:* Quando solicitado na tela preta, pressione Enter para confirmar a ejeção do disco óptico virtual de instalação.
+### 4.6. Serviços Adicionais (SSH)
+* Na tela de SSH, marque a opção **[X] Install OpenSSH Server** pressionando a barra de espaço. Isso é crucial para as práticas de acesso remoto futuras.
+* Na tela de snaps adicionais, não selecione nenhum serviço. Prossiga e aguarde a conclusão da instalação.
+* Quando finalizar, selecione **Reboot Now** e pressione Enter quando o instalador solicitar a remoção da mídia de instalação.
 
 ---
 
-## 6. Tarefas de Pós-Instalação
-Após o reinício completo da máquina virtual:
+## 5. Pós-Instalação e Validação
+Após o reboot, faça login com o usuário criado:
+```bash
+ubuntu_server login: administrador
+Password: <digite adminifal - não aparecerá na tela>
+```
 
-1. Realize o login no console tty1 com as credenciais criadas:
-   * **Login:** `administrador`
-   * **Senha:** `adminifal`
-2. Execute o comando de atualização da lista de pacotes para garantir a comunicação correta com os espelhos oficiais:
-   ```bash
-   sudo apt-get update
-   ```
-3. Digite a senha `adminifal` quando solicitado pelo `sudo`.
-4. Instale o **VirtualBox Extension Pack** no computador hospedeiro (se ainda não o tiver) acessando o site oficial: [virtualbox.org/wiki/Downloads](https://www.virtualbox.org/wiki/Downloads).
+Execute a atualização inicial do catálogo de pacotes do sistema:
+```bash
+sudo apt-get update
+```
+
+No computador host (máquina física Windows), certifique-se de que o **VirtualBox Extension Pack** correspondente à versão instalada esteja devidamente instalado para garantir a compatibilidade de drivers e USB.
 
 ---
 
-## 7. Entregáveis do Laboratório (Relatório)
-Como parte do comportamento profissional e avaliação da disciplina, cada aluno deve documentar a prática e enviar o link de seu relatório no GitHub:
+## 6. Relatório Técnico (Entrega via GitHub)
+Cada grupo ou aluno individual deverá documentar esta prática criando um repositório pessoal no GitHub e adicionando um arquivo chamado `README.md` estruturado com os 7 tópicos abaixo:
 
-* O relatório deve seguir o modelo de 7 tópicos (Identificação, Objetivo, Ambiente, Procedimento, Testes com capturas de tela das etapas chave, Problemas/Soluções e Conclusão).
-* Capture imagens específicas que comprovem:
-  1. A tela do sumário de partições com as 3 divisões (`/`, `/boot`, `swap`).
-  2. O primeiro login realizado com sucesso pelo usuário `administrador`.
-  3. A saída bem-sucedida do comando `sudo apt-get update`.
+1. **Identificação:** Nome completo, curso, turma, data e título da prática.
+2. **Objetivo:** Descrição curta do que foi executado e sua finalidade prática.
+3. **Ambiente:** Especificação de hardware físico (Host), versão do VirtualBox, versão da ISO do S.O. e configurações da VM.
+4. **Procedimento:** Passo a passo resumido com foco nos pontos críticos (particionamento LVM e criação do usuário administrador).
+5. **Testes e Validação:** Evidências de sucesso, como a saída dos comandos `ip addr`, `df -h` (para ver o particionamento real) e `sudo apt-get update`.
+6. **Problemas e Soluções:** Registro de quaisquer erros enfrentados (ex: travamento de ISO, erro de digitação de senha) e como foram corrigidos.
+7. **Conclusão:** Síntese sobre o aprendizado adquirido sobre virtualização nesta aula prática.
