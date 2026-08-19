@@ -27,21 +27,22 @@ Para manter a padronização das práticas, a compatibilidade de redes e a segur
 
 Os links abaixo apontam para os roteiros detalhados de cada prática realizada em laboratório, bem como os exercícios para fixação de conteúdo.
 
-1.  **[Aula 01: Instalação e Configuração Básica do Ubuntu Server](Aula1.md)**
+1.  **[Aula 01: Instalação e Configuração Básica do Ubuntu Server](Aula1-v4.md)**
     *   Cópia da ISO a partir do compartilhamento local `\\172.20.22.179\labredes` para `C:\2026\BSI\VM\original`.
     *   Criação de VM no VirtualBox.
     *   Particionamento avançado de disco usando LVM: `/` (29 GB), `/boot` (1 GB) e `SWAP` (2 GB).
     *   Primeiro boot, atualização de repositórios (`apt-get update`) e verificação de conectividade básica.
-2.  **[Aula 02: Administração de Usuários, Grupos e Permissões](Aula2.md)**
+2.  **[Aula 02: Administração de Usuários, Grupos e Permissões](Aula2-v4.md)**
     *   Criação e gerenciamento de contas de usuários (`fulano`, `cicrano`, `beltrano` e `novato`).
     *   Criação de grupos de trabalho (`devs`) e atribuição de membros.
     *   Configuração fina de permissões em diretórios compartilhados (`chown`, `chgrp`, `chmod`).
     *   Testes de controle de acesso local e isolamento de segurança.
-3.  **[Aula 03: Estrutura de Diretórios, Pastas do Sistema e Permissões FHS](Aula3.md)**
+3.  **[Aula 03: Estrutura de Diretórios, Pastas do Sistema e Permissões FHS](Aula3-v3.md)**
     *   Navegação e utilidade das pastas do padrão FHS (`/etc`, `/var`, `/srv`, `/bin`, `/sbin`, etc.).
     *   Criação recursiva de diretórios aninhados corporativos usando `mkdir -p`.
     *   Aplicação de permissões avançadas de segurança (`770` / `drwxrwx---`) em grupos organizacionais (`ti-dept`, `vendas-dept`).
     *   Simulação de restrição de navegação e tratativas de segurança de arquivos no Linux.
+    *   **[Exercícios de Revisão — Aulas 1, 2 e 3 (Google Forms)](Exercicios-Aula3-v3.md)**: Lista completa de exercícios integrados de fixação para autoavaliação.
 4.  *Aula 04: Configuração de Acesso Remoto Seguro com OpenSSH (Em breve)*
 5.  *Aula 05: Conectividade Avançada via Rede Host-Only no VirtualBox (Em breve)*
 6.  *Aula 06: Configuração de Nomes Estáticos de Host (Em breve)*
