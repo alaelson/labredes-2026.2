@@ -19,7 +19,7 @@ Para manter a padronização das práticas, a compatibilidade de redes e a segur
 ### 📁 Estrutura de Diretórios no Host (Windows do Laboratório)
 *   **Diretório de ISOs originais:** `C:\2026\BSI\VM\original`.
 *   **Diretório de Trabalho do Aluno:** `C:\2026\BSI\VM\<NomeDoAluno>`.
-*   **Servidor de Arquivos da Rede (Acesso a ISO):** `\\172.20.22.179\labredes`
+*   **Servidor de Arquivos da Rede (Acesso a ISO):** `\\172.20.22.21\public`
 
 ---
 
@@ -28,7 +28,7 @@ Para manter a padronização das práticas, a compatibilidade de redes e a segur
 Os links abaixo apontam para os roteiros detalhados de cada prática realizada em laboratório, bem como os exercícios para fixação de conteúdo.
 
 1.  **[Aula 01: Instalação e Configuração Básica do Ubuntu Server](Aula1.md)**
-    *   Cópia da ISO a partir do compartilhamento local `\\172.20.22.179\labredes` para `C:\2026\BSI\VM\original`.
+    *   Cópia da ISO a partir do compartilhamento local `\\172.20.20.21\public` (com as credenciais de acesso) para `C:\2026\BSI\VM\original`.
     *   Criação de VM no VirtualBox.
     *   Particionamento avançado de disco usando LVM: `/` (29 GB), `/boot` (1 GB) e `SWAP` (2 GB).
     *   Primeiro boot, atualização de repositórios (`apt-get update`) e verificação de conectividade básica.
@@ -42,11 +42,15 @@ Os links abaixo apontam para os roteiros detalhados de cada prática realizada e
     *   Criação recursiva de diretórios aninhados corporativos usando `mkdir -p`.
     *   Aplicação de permissões avançadas de segurança (`770` / `drwxrwx---`) em grupos organizacionais (`ti-dept`, `vendas-dept`).
     *   Simulação de restrição de navegação e tratativas de segurança de arquivos no Linux.
-4.  *Aula 04: Configuração de Acesso Remoto Seguro com OpenSSH (Em breve)*
+4.  4.  **[Aula 04: Manipulação, Edição, Permissões e Automação de Arquivos](Aula4.md)**
+    *   Edição de texto no terminal com Nano e Vim.
+    *   Comandos de manipulação e visualização (`touch`, `cp`, `mv`, `rm -i`, `cat`, `less`, `head`, `tail`).
+    *   Automação de criação de usuários e definição de senhas em lote com scripts em Shell (`useradd -m`, `chpasswd`, laço `for`).
+    *   Verificação com o comando `getent` (`passwd` e `group`) e testes de login.
 5.  *Aula 05: Conectividade Avançada via Rede Host-Only no VirtualBox (Em breve)*
 6.  *Aula 06: Configuração de Nomes Estáticos de Host (Em breve)*
 7.  *Aula 07: Implantação de Rede Virtual Privada com OpenVPN (Em breve)*
-
+   
 ---
 
 ## 📝 Diretrizes para Entrega de Relatórios Técnicos
