@@ -75,6 +75,13 @@ No terminal, execute os comandos a seguir com seu usuário `administrador` para 
     ```
     *Digite `y` (yes/sim) ou `n` (no/não) e confirme com Enter.*
 
+### Passo 2.3: Remoção forçada
+1.  É possível remover arquivos e diretórios de forma direta com a flag `-f`, no caso de diretórios é necessário adicionar a flag `-r`
+    ```bash
+    administrador@ubuntu_server:~$ rm -rf backups 
+    ```
+    
+
 ---
 
 ## 3. Permissões de Arquivos vs. Permissões de Diretórios
