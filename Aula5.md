@@ -1,6 +1,6 @@
 # Aula 05: Acesso Remoto SSH via Redirecionamento de Portas no VirtualBox e Diagnóstico de Rede
 
-Nesta aula prática, você aprenderá a configurar o acesso remoto seguro via SSH (Secure Shell) à sua máquina virtual Ubuntu Server no VirtualBox, utilizando o mecanismo de **Redirecionamento de Portas (Port Forwarding)** do modo NAT. Além disso, faremos a inspeção diagnóstica das interfaces de rede, identificando endereços IPv4, máscaras e endereços MAC tanto no sistema Linux convidado (Guest) quanto no sistema Windows hospedeiro (Host).
+Nesta aula prática, você aprenderá a configurar o acesso remoto seguro via SSH (Secure Shell) à sua máquina virtual Ubuntu Server no VirtualBox, utilizando o mecanismo de **Redirecionamento de Portas (Port Forwarding)** do modo NAT. Além disso, faremos a inspeção diagnóstica profunda das interfaces de rede, rotas padrão, rastreamento de pacotes, sessões ativas de terminal e monitoramento de portas TCP tanto no sistema Linux convidado (Guest) quanto no sistema Windows hospedeiro (Host).
 
 ---
 
@@ -23,9 +23,9 @@ Ao enviar tráfego para a porta **`5222`** do computador local (Host), o Virtual
 
 ---
 
-## 2. Diagnóstico de Rede e Instalação de Pacotes
+## 2. Diagnóstico de Rede e Instalação de Utilitários no Ubuntu Server
 
-Antes de alterar o hipervisor, acesse seu servidor Ubuntu Server no VirtualBox com o usuário `administrador` e a senha `adminifal` para realizar a inspeção inicial e preparar os utilitários de diagnóstico.
+Antes de alterar as configurações do hipervisor, acesse seu servidor Ubuntu Server no VirtualBox com o usuário `administrador` e a senha `adminifal` para realizar a inspeção inicial da rede e preparar os utilitários de diagnóstico.
 
 ### Passo 2.1: Leitura do Estado da Rede com Netplan
 No Ubuntu Server moderno, o utilitário `netplan` gerencia as configurações de rede. Execute o comando a seguir para visualizar o status das interfaces ativas (sem alterar nenhum arquivo de configuração estática):
@@ -36,23 +36,21 @@ administrador@ubuntu_server:~$ netplan status
 
 Observe que a interface `enp0s3` estará listada com o modo DHCP ativo e o endereço IP dinâmico atribuído pelo VirtualBox (`10.0.2.15/24`).
 
-### Passo 2.2: Verificação do Serviço OpenVPN e Instalação do Net-Tools
-1.  **Verificar se o pacote OpenVPN está instalado:**
-    Execute o comando `dpkg` para checar se o serviço de VPN do servidor já se encontra presente no sistema:
+### Passo 2.2: Verificação do Serviço OpenSSH e Instalação de Pacotes Diagnósticos
+1.  **Verificar se o pacote OpenSSH Server está instalado:**
+    Execute o comando `dpkg` para checar se o serviço SSH (`openssh-server`) já se encontra presente no sistema:
     ```bash
-    administrador@ubuntu_server:~$ dpkg -l | grep openvpn
+    administrador@ubuntu_server:~$ dpkg -l | grep openssh-server
     ```
-    *Se nada for retornado ou o pacote não estiver instalado, o sistema não exibirá linhas ativas para o serviço.*
-
-2.  **Instalar o conjunto de ferramentas clássicas de rede (`net-tools`):**
-    Atualize o índice de repositórios e instale o pacote `net-tools` (que fornece utilitários tradicionais como `ifconfig`, `netstat` e `route`):
+2.  **Instalar os pacotes `net-tools` e `traceroute`:**
+    Atualize o índice de repositórios e instale as ferramentas tradicionais de diagnóstico de rede:
     ```bash
     administrador@ubuntu_server:~$ sudo apt update
-    administrador@ubuntu_server:~$ sudo apt install -y net-tools
+    administrador@ubuntu_server:~$ sudo apt install -y net-tools traceroute
     ```
 
-### Passo 2.3: Inspeção de Interfaces com `ifconfig` no Ubuntu Server
-Com o pacote instalado, execute o comando `ifconfig` no console da sua VM:
+### Passo 2.3: Inspeção de Interfaces com `ifconfig`
+Com o pacote `net-tools` instalado, execute o comando `ifconfig` no console da sua VM:
 
 ```bash
 administrador@ubuntu_server:~$ ifconfig
@@ -62,131 +60,179 @@ administrador@ubuntu_server:~$ ifconfig
 *   **Interface Ethernet (`enp0s3`):**
     *   **`inet 10.0.2.15`:** Endereço IPv4 atribuído à máquina virtual.
     *   **`netmask 255.255.255.0`:** Máscara de sub-rede (equivalente ao prefixo `/24`).
-    *   **`ether 08:00:27:ca:9b:66` (ou `HWaddr`):** Endereço Físico (MAC Address) da placa de rede virtual gravado pelo VirtualBox.
+    *   **`ether 08:00:27:ca:9b:66` (ou `HWaddr`):** Endereço Físico (MAC Address) da placa de rede virtual.
 *   **Interface de Loopback (`lo`):**
-    *   **`inet 127.0.0.1`:** Endereço de ecoretorno local. Esta interface de software é utilizada para comunicação interna de processos do próprio sistema operacional, sem enviar pacotes para a rede física ou virtual.
+    *   **`inet 127.0.0.1`:** Endereço de ecoretorno local para comunicação interna de processos.
 
-### Passo 2.4: Inspeção de Interfaces com `ipconfig` no Windows Host
-Agora, abra o **PowerShell** ou o **Prompt de Comando (CMD)** no seu computador físico (Windows do laboratório) e execute:
+### Passo 2.4: Verificação do Gateway Padrão com `route -n`
+Para verificar por onde o tráfego do servidor é roteado para fora da rede local, inspecione a tabela de roteamento do kernel com o comando `route -n`:
 
-```powershell
-PS C:\Users\Aluno> ipconfig /all
+```bash
+administrador@ubuntu_server:~$ route -n
 ```
 
-*Compare a infraestrutura das duas máquinas:*
-1.  **Placa de Rede Física (Realtek / Intel / Wi-Fi):** Exibe o IP real do computador do laboratório fornecido pela rede do IFAL.
-2.  **Adaptador VirtualBox Host-Only Network (se ativo):** Exibe o IP da interface virtual criada pelo VirtualBox no Windows.
-3.  **Comparação de MAC Address:** Observe que o endereço MAC da placa física do Windows é diferente do MAC virtual (`08:00:27:...`) visto dentro da VM Linux com o `ifconfig`.
+*Entendendo a saída:*
+*   O parâmetro **`-n`** (numeric) exibe os endereços em formato numérico IP de forma instantânea, sem perder tempo tentando resolver nomes via DNS.
+*   A linha iniciada por **`0.0.0.0`** (Destination) aponta para o **Gateway Padrão** (Gateway `10.0.2.2`), indicando que qualquer tráfego destinado à internet ou a redes externas será encaminhado para o roteador virtual do VirtualBox através da interface `enp0s3`.
+
+### Passo 2.5: Rastreamento de Rotas de Pacotes com `traceroute`
+Para acompanhar a trajetória dos pacotes de rede desde a sua VM até um servidor remoto na internet, utilize o utilitário `traceroute`:
+
+```bash
+administrador@ubuntu_server:~$ traceroute 8.8.8.8
+```
+
+*Análise pedagógica:*
+*   O primeiro salto (hop 1) será o gateway interno do VirtualBox (`10.0.2.2`).
+*   Os saltos seguintes mostram a passagem dos pacotes pelos roteadores da rede do IFAL até alcançarem o destino final.
+
+### Passo 2.6: Inspeção de Terminais e Usuários Ativos com `w`
+O comando `w` exibe em tempo real quais usuários estão conectados ao servidor, quais terminais estão utilizando e quais processos estão executando:
+
+```bash
+administrador@ubuntu_server:~$ w
+```
+
+*Exemplo de saída inicial (apenas console local):*
+```text
+ 14:30:00 up 10 min,  1 user,  load average: 0.00, 0.01, 0.00
+USER          TTY      FROM             LOGIN@   IDLE   JCPU   PCPU WHAT
+administrador tty1     -                14:20    0.00s  0.05s  0.01s w
+```
+*   **`tty1`:** Indica que o usuário está logado diretamente no console físico/virtual da máquina virtual.
 
 ---
 
-## 3. Configuração do Redirecionamento de Portas no VirtualBox
+## 3. Inspeção do Host Windows (PowerShell e `netstat -an`)
 
-Agora vamos configurar o VirtualBox para redirecionar conexões da porta local **`5222`** do Windows para a porta **`22`** do Ubuntu Server.
+Antes de ativar o redirecionamento no VirtualBox, abra o **PowerShell** no Windows Host (máquina física do laboratório) para examinar as interfaces e o estado das portas locais.
+
+### Passo 3.1: Inspeção de Interfaces com `ipconfig /all`
+```powershell
+PS C:\Users\Aluno> ipconfig /all
+```
+Observe o IP real do computador físico e verifique que o MAC Address do Windows é diferente do MAC virtual visto com o `ifconfig` na VM.
+
+### Passo 3.2: Diagnóstico de Portas no Windows ANTES do Redirecionamento
+O comando `netstat -an` exibe todas as conexões ativas e portas TCP/UDP em escuta no sistema operacional. Vamos filtrar a porta **`5222`** no PowerShell:
+
+```powershell
+PS C:\Users\Aluno> netstat -an | findstr 5222
+```
+
+*Resultado Esperado:* **Nenhuma linha é retornada**, pois a porta `5222` ainda não está reservada nem escutando no Windows.
+
+---
+
+## 4. Configuração do Redirecionamento de Portas no VirtualBox
+
+Agora vamos configurar o VirtualBox para capturar o tráfego que chegar à porta local **`5222`** do Windows e redirecioná-lo para a porta **`22`** (SSH) da VM (`10.0.2.15`).
 
 ### Passo a Passo no VirtualBox:
 
-1.  No painel principal do Oracle VM VirtualBox, selecione a máquina virtual **`ubuntu_server`**.
-2.  Clique no botão **Configurações** (ou pressione `Ctrl + S`).
-3.  No menu lateral esquerdo, selecione **Rede**.
-4.  Certifique-se de que o **Adaptador 1** está habilitado e conectado a **NAT**.
-5.  Clique na opção **Avançado** para expandir as configurações adicionais.
-6.  Clique no botão **Redirecionamento de Portas** (Port Forwarding).
-
-```text
-[ Configurações da VM ] 
-   └── Rede
-        └── Adaptador 1 (Conectado a: NAT)
-             └── Avançado ▾
-                  └── [ Redirecionamento de Portas ]
-```
-
-7.  Na janela de Regras de Redirecionamento de Portas, clique no ícone **`+`** (Inserir nova regra) no canto superior direito e preencha exatamente com os seguintes valores:
+1. No painel principal do Oracle VM VirtualBox, selecione a VM **`ubuntu_server`**.
+2. Clique em **Configurações** (`Ctrl + S`) -> **Rede**.
+3. Em **Adaptador 1** (NAT), clique em **Avançado** -> **Redirecionamento de Portas**.
+4. Clique no ícone **`+`** (Inserir nova regra) e preencha a tabela exatamente como segue:
 
 | Nome | Protocolo | IP do Hospedeiro | Porta do Hospedeiro | IP do Convidado | Porta do Convidado |
 | :--- | :---: | :---: | :---: | :---: | :---: |
 | **SSH** | `TCP` | `127.0.0.1` | **`5222`** | **`10.0.2.15`** | **`22`** |
 
-> **Nota:** Se preferir, o campo "IP do Hospedeiro" pode ser deixado em branco ou preenchido com `127.0.0.1` (loopback local).
-
-8.  Clique em **OK** na janela de regras e em **OK** na janela de configurações para aplicar as alterações.
+5. Clique em **OK** para salvar e fechar as janelas.
 
 ---
 
-## 4. Testando o Acesso Remoto SSH a partir do Host Windows
+## 5. Validação com `netstat -an` e Teste de Conexão SSH Remota
 
-Com a máquina virtual em execução e a regra aplicada, abra o **PowerShell** no Windows do laboratório para realizar o acesso remoto.
+### Passo 5.1: Diagnóstico no Windows DEPOIS de Ativar a Regra no VirtualBox
+Com a regra aplicada no VirtualBox, execute novamente o comando `netstat -an` no PowerShell do Windows:
 
-### Passo 4.1: Conectar via SSH pelo Terminal do Windows
-Execute o comando de conexão SSH indicando a porta personalizada **`5222`** através do parâmetro `-p`:
+```powershell
+PS C:\Users\Aluno> netstat -an | findstr 5222
+```
+
+*Resultado Esperado:*
+```text
+  TCP    127.0.0.1:5222         0.0.0.0:0              LISTENING
+```
+*   A porta **`5222`** agora aparece no estado **`LISTENING`** (Escutando), indicando que o processo do VirtualBox no Windows está pronto para receber conexões SSH de entrada!
+
+### Passo 5.2: Conectar via SSH a partir do Windows
+No PowerShell, execute a conexão SSH direcionada à porta `5222`:
 
 ```powershell
 PS C:\Users\Aluno> ssh -p 5222 administrador@127.0.0.1
 ```
+*   Digite **`yes`** para aceitar a chave de autenticidade (fingerprint) se for o primeiro acesso.
+*   Insira a senha do usuário (`adminifal`).
 
-*O que acontecerá durante a primeira conexão:*
-1.  **Alerta de Autenticidade (Fingerprint):** O OpenSSH exibirá uma mensagem informando que a chave do host remoto é desconhecida. Digite **`yes`** e pressione `Enter`.
-    ```text
-    The authenticity of host '[127.0.0.1]:5222' can't be established.
-    ED25519 key fingerprint is SHA256:xX...Xx.
-    Are you sure you want to continue connecting (yes/no/[fingerprint])? yes
-    ```
-2.  **Solicitação de Senha:** Digite a senha do usuário da VM (`adminifal`) e pressione `Enter`.
-    ```text
-    administrador@127.0.0.1's password: adminifal
-    ```
+### Passo 5.3: Diagnóstico de Conexão Ativa (`ESTABLISHED`) no Windows
+Abra uma **segunda janela do PowerShell** no Windows enquanto a conexão SSH estiver aberta e execute:
 
-3.  **Acesso Concedido:** O terminal do PowerShell exibirá o banner de boas-vindas do Ubuntu Server e o prompt remoto:
-    ```bash
-    Welcome to Ubuntu 26.04 LTS (GNU/Linux 6.8.0-generic x86_64)
-    ...
-    administrador@ubuntu_server:~$
-    ```
-
-### Passo 4.2: Confirmar a Conexão Remota
-Dentro da sessão SSH estabelecida no PowerShell, rode o comando `whoami` e `hostname` para comprovar que você está controlando a máquina virtual remotamente:
-
-```bash
-administrador@ubuntu_server:~$ whoami
-administrador
-administrador@ubuntu_server:~$ hostname
-ubuntu_server
+```powershell
+PS C:\Users\Aluno> netstat -an | findstr 5222
 ```
 
-Para encerrar a sessão SSH remota e retornar ao PowerShell do Windows, digite:
-```bash
-administrador@ubuntu_server:~$ exit
-Connection to 127.0.0.1 closed.
+*Resultado Esperado:*
+```text
+  TCP    127.0.0.1:5222         0.0.0.0:0              LISTENING
+  TCP    127.0.0.1:5222         127.0.0.1:54321        ESTABLISHED
+  TCP    127.0.0.1:54321        127.0.0.1:5222         ESTABLISHED
 ```
+*   A saída demonstra claramente o canal de comunicação ativo em estado **`ESTABLISHED`** entre o cliente SSH do Windows e a porta de redirecionamento do VirtualBox!
+
+### Passo 5.4: Verificação de Sessão SSH e Terminais com `w` no Linux Remoto
+Dentro do terminal SSH ativo no PowerShell, execute o comando `w`:
+
+```bash
+administrador@ubuntu_server:~$ w
+```
+
+*Resultado Esperado:*
+```text
+ 14:45:12 up 25 min,  2 users,  load average: 0.02, 0.01, 0.00
+USER          TTY      FROM             LOGIN@   IDLE   JCPU   PCPU WHAT
+administrador tty1     -                14:20    25:00s 0.05s  0.01s -bash
+administrador pts/0    10.0.2.2         14:44    0.00s  0.02s  0.00s w
+```
+*   **Análise Pedagógica do `w`:**
+    *   **`tty1`:** Sessão aberta no console físico/virtual do VirtualBox.
+    *   **`pts/0` (Pseudo-Terminal):** Nova sessão remota aberta via SSH através da rede virtual. O campo **`FROM`** indica que a conexão partiu do gateway NAT (`10.0.2.2`).
+
+Para sair da sessão SSH, digite `exit`.
 
 ---
 
-## 5. Tarefa Prática de Laboratório (Entrega via GitHub)
+## 6. Tarefa Prática de Laboratório (Entrega via GitHub)
 
-Para consolidar os conhecimentos de diagnósticos de rede e acesso remoto, cada aluno deverá realizar os testes em seu ambiente e registrar as evidências em seu repositório pessoal do GitHub, criando o arquivo **`Aula5.md`** estruturado no **Modelo de 7 Passos**:
+Para consolidar a prática, cada aluno deverá executar todos os testes em seu ambiente e registrar as evidências em seu repositório pessoal do GitHub, criando o arquivo **`Aula5.md`** estruturado no **Modelo de 7 Passos**:
 
-### Roteiro da Tarefa:
+### Roteiro Obrigatório de Evidências:
 
-1.  **Inspeção de Interfaces:**
-    *   Execute `ifconfig` na VM Linux e grave a saída identificando o IP e o MAC Address da interface `enp0s3`.
-    *   Execute `ipconfig /all` no PowerShell do Windows Host e identifique a interface física de rede.
-2.  **Redirecionamento de Portas:**
-    *   Configure a regra de redirecionamento no VirtualBox (Porta Host `5222` -> Porta Guest `22` no IP `10.0.2.15`).
-    *   Capture uma imagem (print) da janela de regras do VirtualBox mostrando a regra `SSH` ativa.
-3.  **Teste de Conexão SSH:**
-    *   Abra o PowerShell do Windows e conecte-se via `ssh -p 5222 administrador@127.0.0.1`.
-    *   Execute os comandos `uptime` e `netplan status` dentro da sessão SSH remota e grave a captura de tela como evidência de funcionamento.
+1.  **Diagnósticos no Linux Guest:**
+    *   Print/Saída do comando `ifconfig` identificando o IP `10.0.2.15` e o MAC Address.
+    *   Print/Saída do comando `route -n` destacando o Gateway Padrão `10.0.2.2`.
+    *   Print/Saída do comando `traceroute 8.8.8.8` mostrando os saltos da rede.
+2.  **Diagnósticos de Portas no Windows Host (`netstat -an`):**
+    *   Print/Saída do PowerShell executando `netstat -an | findstr 5222` **ANTES** de ativar o redirecionamento (vazio/sem resposta).
+    *   Print da regra SSH criada no VirtualBox (Porta Host `5222` -> Porta Guest `22`).
+    *   Print/Saída do `netstat -an | findstr 5222` no Windows **DEPOIS** de ativar a regra, mostrando a porta em estado **`LISTENING`**.
+    *   Print/Saída do `netstat -an | findstr 5222` **DURANTE** a sessão SSH ativa, demonstrando o estado **`ESTABLISHED`**.
+3.  **Conexão Remota e Sessão SSH:**
+    *   Print do terminal remoto no PowerShell logado via `ssh -p 5222 administrador@127.0.0.1`.
+    *   Print do comando `w` dentro da sessão SSH, destacando a presença do terminal `pts/0`.
 4.  **Publicação:**
-    *   Crie o arquivo `Aula5.md` no seu repositório no GitHub contendo os 7 passos (Identificação, Objetivo, Ambiente, Procedimento, Testes e Evidências, Problemas/Soluções e Conclusão) e atualize o `README.md` principal do seu repositório com o link para esta aula.
+    *   Crie e envie o arquivo `Aula5.md` no seu repositório do GitHub e adicione o link de acesso na página inicial `README.md`.
 
 ---
 
 ## 📝 Modelo de Relatório Técnico (Estrutura de 7 Passos)
 
-1.  **Identificação:** Nome completo, matrícula, turma (BSI 2026.02), data e título da prática.
-2.  **Objetivo:** Explicação clara do redirecionamento de portas NAT no VirtualBox e acesso SSH remoto.
-3.  **Ambiente:** Especificação das especificações do Host Windows e do Guest Ubuntu Server 26.04 LTS no VirtualBox.
-4.  **Procedimento:** Descrição das etapas de instalação do `net-tools`, verificação do `openvpn`, configuração da regra no VirtualBox e comando SSH no PowerShell.
-5.  **Testes e Evidências:** Capturas de tela da regra NAT no VirtualBox, saídas dos comandos `ifconfig` e `ipconfig`, e tela do PowerShell com a sessão SSH ativa.
-6.  **Problemas e Soluções:** Registro de erros de porta ou recusa de conexão e como foram sanados.
-7.  **Conclusão:** Reflexão técnica sobre como o redirecionamento de portas possibilita gerenciar servidores em redes NAT isoladas.
+1. **Identificação:** Nome completo, matrícula, turma (BSI 2026.02), data e título da prática.
+2. **Objetivo:** Explicação clara sobre diagnóstico de rotas, controle de portas via `netstat` e acesso remoto SSH em ambiente NAT.
+3. **Ambiente:** Especificação das configurações do Host Windows e da VM Ubuntu Server 26.04 LTS no VirtualBox.
+4. **Procedimento:** Descrição do processo de instalação do `net-tools` e `traceroute`, verificação do `openssh-server`, análise com `route -n`, `w`, `ipconfig`, `netstat -an` e configuração NAT.
+5. **Testes e Evidências:** Capturas de tela organizadas com as saídas dos comandos diagnósticos no Linux e Windows.
+6. **Problemas e Soluções:** Registro de quaisquer dificuldades encontradas (como recusa de porta no firewall ou erros de digitação de parâmetros) e como foram corrigidas.
+7. **Conclusão:** Reflexão técnica sobre a utilidade dos comandos de auditoria e a importância de entender o fluxo de portas em redes virtualizadas.
