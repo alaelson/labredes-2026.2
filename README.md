@@ -2,7 +2,7 @@
 
 Repositório oficial para a organização e acompanhamento das práticas de laboratório da disciplina **Laboratório de Sistemas Operacionais e Redes (LSOR)** do curso de **Bacharelado em Sistemas de Informação (BSI)** no **Instituto Federal de Alagoas (IFAL) - Campus Maceió**, para o semestre letivo **2026.02**.
 
-Esta disciplina tem natureza eminentemente prática e applied, na qual cada conceito de redes e sistemas operacionais é transformado em configuração, teste, diagnóstico e documentação técnica.
+Esta disciplina tem natureza eminentemente prática e aplicada, na qual cada conceito de redes e sistemas operacionais é transformado em configuração, teste, diagnóstico e documentação técnica.
 
 ---
 
@@ -49,19 +49,23 @@ Os links abaixo apontam para os roteiros detalhados de cada prática realizada e
     *   Automação administrativa: criação de scripts executáveis em shell (Bash) usando laço `for` para criação de usuários (`useradd -m`) e definição de senhas em lote (`chpasswd`).
     *   Auditoria do sistema de contas e grupos locais usando o utilitário `getent` (`getent passwd` e `getent group`).
     *   **[Exercícios de Revisão — Aulas 1 a 4 (Google Forms)](Exercicios-Aula4.md)**: Lista completa de exercícios integrados de fixação para autoavaliação.
-5.  **[Aula 05: Acesso Remoto SSH via Redirecionamento de Portas e Diagnóstico de Rede](Aula5.md)**
-    *   Análise diagnóstica no Linux Guest: interfaces (`ifconfig`), rota e gateway padrão (`route -n`), rastreamento de saltos (`traceroute`) e sessões ativas de terminal (`w`).
-    *   Análise no Windows Host via PowerShell: adaptadores (`ipconfig /all`) e auditoria de portas TCP antes/depois do redirecionamento (`netstat -an | findstr 5222`).
-    *   Configuração do redirecionamento de portas NAT no VirtualBox (Porta Host `5222` -> Porta Guest `22`).
-    *   Acesso remoto seguro SSH a partir do PowerShell do Windows e validação da conexão em estado `ESTABLISHED`.
-6.  *Aula 06: Conectividade Avançada via Rede Host-Only no VirtualBox (Em breve)*
-7.  *Aula 07: Configuração de Nomes Estáticos de Host (Em breve)*
-8.  *Aula 08: Implantação de Rede Virtual Privada com OpenVPN (Em breve)*
+5.  **[Aula 05: Acesso Remoto SSH via Redirecionamento de Portas no VirtualBox e Diagnóstico de Rede](Aula5.md)**
+    *   Entendimento do funcionamento do modo NAT no VirtualBox e redirecionamento de portas (Host: `5222` -> Guest: `22`).
+    *   Diagnóstico e inspeção de rede com `netplan status`, `ifconfig` (Linux) e `ipconfig /all` (Windows Host).
+    *   Leitura de tabela de roteamento com `route -n`, teste de saltos com `traceroute` e auditoria de sessões ativas com `w` (`tty1` vs `pts/0`).
+    *   Monitoramento de portas de rede no Windows Host com `netstat -an | findstr 5222` (estados antes, depois e em conexão).
+6.  **[Aula 06: Configuração de Rede Estática com Netplan e Modo Placa em Ponte (Bridge Adapter) no VirtualBox](Aula6.md)**
+    *   Reconfiguração do adaptador de rede no VirtualBox do modo NAT para **Placa em Ponte (Bridge Adapter)**.
+    *   Busca de IP livre na sub-rede `172.20.20.0/22` a partir de `172.20.23.1` via `ping` no PowerShell do Windows.
+    *   Edição e configuração do arquivo **`/etc/netplan/00-installer-config.yaml`** com o renderizador `networkd`, IP estático `/22`, rotas e servidores DNS.
+    *   Exibição do arquivo YAML via `cat`, aplicação das regras com `sudo netplan apply` e checagem com `ip addr show` e `netplan status`.
+    *   Testes de conectividade bidirecional (ping Host <-> Guest) e diagnósticos de rota com `traceroute google.com` e `traceroute one.one.one.one`.
+7.  *Aula 07: Implantação de Rede Virtual Privada com OpenVPN no Linux (Em breve)*
 
 ---
 
 ### 📑 Avaliações da Disciplina
-*   **[Avaliação Prático-Teórica I (Template de Entrega)](template-prova-1-v2.md)**: Atividade integrada de laboratório baseada na importação da VM `UbuntuAvaliacao1.ova` (disponível em `\\172.20.20.21\public\avaliacao1`). Contém 10 questões que mesclam a prática de terminal com reflexões teóricas de administração de usuários, permissões, criação de dados estruturados JSON e automação de relatórios eleitorais via Shell Script (`cadastrarcandidatos.sh`).
+*   **[Avaliação Prático-Teórica I (Template de Entrega)](template-prova-1.md)**: Atividade integrada de laboratório baseada na importação da VM `UbuntuAvaliacao1.ova` (disponível em `\\172.20.20.21\public\avaliacao1`). Contém 10 questões que mesclam a prática de terminal com reflexões teóricas de administração de usuários, permissões, criação de dados estruturados JSON e automação de relatórios eleitorais via Shell Script (`cadastrarcandidatos.sh`).
 
 ---
 
