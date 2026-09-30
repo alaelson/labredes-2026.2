@@ -8,7 +8,10 @@ A topologia do laboratório será composta por duas Máquinas Virtuais (VMs):
 
 ---
 
-## 1. Fundamentos Técnicos: Roteamento, NAT e Mascaramento de IP
+## 1. Fundamentos Técnicos: Roteamento e Conceitos Gerais
+
+O papel do gateway é encaminhar tráfego entre redes distintas (por exemplo, entre uma rede interna privada e a rede externa/Internet). Nesta aula focamos em roteamento básico e conectividade; as definições detalhadas sobre NAT (Network Address Translation) e mascaramento serão apresentadas mais adiante (Seção 8).
+
 
 ### O Papel do Gateway NAT
 Em redes corporativas e residenciais, o **Gateway NAT** reescreve o endereço IP de origem (*source address*) de todos os pacotes originados nas máquinas da rede privada interna (LAN) para o endereço IP público ou externo de sua própria interface WAN. 
@@ -18,7 +21,18 @@ Em redes corporativas e residenciais, o **Gateway NAT** reescreve o endereço IP
 
 ---
 
-## 2. Configuração das Interfaces no VirtualBox
+## 2. Configuração dos Adaptadores de Rede no VirtualBox
+
+### 2.1. Configuração da VM1 (Gateway / Servidor NAT)
+1. No VirtualBox, selecione a **VM1** () e abra **Configurações -> Rede**.
+2. **Adaptador 1 ( - WAN):**
+   * **Habilitar Placa de Rede:** Marcado
+   * **Conectado a:** **Placa em Ponte (Bridge Adapter)**
+   * **Nome:** Selecione a placa de rede física do Host Windows.
+3. **Adaptador 2 ( - LAN):**
+   * **Habilitar Placa de Rede:** Marcado
+   * **Conectado a:** **Rede Interna (Internal Network)**
+   * **Nome:** Digite o nome da rede interna (ex: ).
 <p><center> Figura 1: VirtualBox com VMs Gateway e VM2</center></p>   
    <img src="figuras/fig1.gw-vm2.png" alt=""
     title="" width="400" height="280"/> <br/>
@@ -31,7 +45,7 @@ Em redes corporativas e residenciais, o **Gateway NAT** reescreve o endereço IP
    <img src="figuras/fig2-intefaces-gw2.png" alt=""
     title="" width="400" height="280"/> <br/>
 
-Topologia de Rede e Definições de IP
+## 3. Topologia de Rede e Definições de IP
 
 ### Tabela 1: Definições da Rede Externa (WAN - Interface  da VM1)
 | Parâmetro | Endereço / Configuração |
@@ -40,42 +54,16 @@ Topologia de Rede e Definições de IP
 /| **Máscara de Sub-rede** |  (255.255.252.0) |
 | **IP do Gateway Externo** | 172.20.20.1 |
 | **IP da VM1 (Interface )** |  *(IP estático definido na Aula 06)* |
-| **Servidores DNS** | 8.8.8.8, ,  |
+| **Servidores DNS** |  172.20.20.1, 1.1.1.1, 8.8.8.8 |
 
-### Tabela 2: Definições da Rede Interna (LAN -  da VM1 e  da VM2)
+### Tabela 2: Definições da Rede Interna (LAN - enp0s8 da VM1 e enp0s3 da VM2)
 | Descrição / Equipamento | Endereço IP / Configuração |
 | :--- | :--- |
-| **Rede Interna (LAN)** | 10.0.0.1 |
-| **Máscara de Sub-rede** |  (255.255.255.0) |
+| **Rede Interna (LAN)** | 10.0.0.0/24 |
+| **Máscara de Sub-rede** | /24 (255.255.255.0) |
 | **Broadcast** | 10.0.0.255 |
-| **Gateway Interno (VM1 - Interface )** | **** |
-| **Cliente da Rede Interna (VM2 - Interface )** | **** |
-
----
-
-## 3. Configuração dos Adaptadores de Rede no VirtualBox
-
-### 3.1. Configuração da VM1 (Gateway / Servidor NAT)
-1. No VirtualBox, selecione a **VM1** () e abra **Configurações -> Rede**.
-2. **Adaptador 1 ( - WAN):**
-   * **Habilitar Placa de Rede:** Marcado
-   * **Conectado a:** **Placa em Ponte (Bridge Adapter)**
-   * **Nome:** Selecione a placa de rede física do Host Windows.
-3. **Adaptador 2 ( - LAN):**
-   * **Habilitar Placa de Rede:** Marcado
-   * **Conectado a:** **Rede Interna (Internal Network)**
-   * **Nome:** Digite o nome da rede interna (ex: ).
-
-
-
-### 3.2. Configuração da VM2 (Cliente da Rede Interna)
-1. No VirtualBox, selecione a **VM2** () e abra **Configurações -> Rede**.
-2. **Adaptador 1 ( - LAN):**
-   * **Habilitar Placa de Rede:** Marcado
-   * **Conectado a:** **Rede Interna (Internal Network)**
-   * **Nome:** Deve ser exatamente o mesmo nome configurado na VM1 ().
-
-
+| **Gateway Interno (VM1 - Interface enp0s8)** | 10.0.0.1 |
+| **Cliente da Rede Interna (VM2 - Interface enp0s3)** | 10.0.0.2 |
 
 ---
 
@@ -84,32 +72,51 @@ Topologia de Rede e Definições de IP
 ### Passo 4.1: Configuração das Interfaces no Netplan (VM1)
 Acesse a **VM1** como  e edite o arquivo de rede :
 
-
+```bash
+$ nano /etc/netplan/00-installer-config.yaml
+```
 
 Insira a configuração das duas interfaces ( e ):
 
-
-
 *(Lembre-se de ajustar  para o IP estático da sua VM1 definido na Aula 06).*
 
+```yaml
+network:
+  version: 2
+  renderer: networkd
+  ethernets:
+    enp0s3:
+      dhcp4: false
+      addresses:
+        - 172.20.23.1/22
+      routes:
+        - to: default
+          via: 172.20.20.1
+      nameservers:
+        addresses:
+          - 172.20.20.1
+          - 1.1.1.1
+          - 8.8.8.8
+    enp0s8:
+      dhcp4: false
+      addresses:
+        - 10.0.0.1/24
+
+```
+
+### 4.2. Configuração da VM2 (Cliente da Rede Interna)
+1. No VirtualBox, selecione a **VM2** () e abra **Configurações -> Rede**.
+2. **Adaptador 1 ( - LAN):**
+   * **Habilitar Placa de Rede:** Marcado
+   * **Conectado a:** **Rede Interna (Internal Network)**
+   * **Nome:** Deve ser exatamente o mesmo nome configurado na VM1 ().
+
+
 Aplique as alterações:
+```bash
+$ sudo netplan apply
+```
 
-
-### Passo 4.2: Habilitar o Encaminhamento de Pacotes no Kernel (IP Forwarding)
-Para que o kernel do Linux atue como um roteador e repasse pacotes entre as duas placas de rede:
-
-1. **Ativar temporariamente no kernel em execução:**
-   
-
-2. **Tornar a configuração permanente:**
-   Edite o arquivo :
-   
-   Descomente a linha removendo o caractere :
-   
-   Salve e aplique com .
-
-### Passo 4.3: Configuração do Nat / Mascaramento com IPTables
-Execute as regras do  para liberar o tráfego e fazer o mascaramento de IP (*MASQUERADE*) da interface interna para a externa:
 
 
 
@@ -121,14 +128,31 @@ Acesse a **VM2** () no VirtualBox para definir o endereço IP interno  e apontar
 
 ### Passo 5.1: Edição do Netplan na VM2
 Edite o arquivo de rede na **VM2**:
-
-
-
 Insira a configuração conforme a **Tabela 2**:
 
+```yaml
+network:
+  version: 2
+  renderer: networkd
+  ethernets:
+    enp0s3:
+      dhcp4: false
+      addresses:
+        - 10.0.0.2/24
+      gateway4: 10.0.0.1
+      nameservers:
+        addresses:
+          - 172.20.20.1
+          - 1.1.1.1
 
+```
 
 Aplique as configurações:
+Aplique as alterações:
+```bash
+$ sudo netplan apply
+```
+
 
 
 ---
@@ -140,18 +164,36 @@ Realize os testes para verificar o funcionamento do roteamento NAT entre as duas
 ### Teste 1: Conectividade Local entre VM1 e VM2
 1. Na **VM1** (Gateway), execute um ping para a VM2:
    
+```bash
+$ ping 10.0.0.2
+```
 2. Na **VM2** (Cliente), execute um ping para a VM1:
    
+```bash
+$ ping 10.0.0.1
+```
 
 ### Teste 2: Conectividade da VM2 com o Gateway Externo e Internet
 Na **VM2** (Cliente da rede interna), execute os pings para validar se a tradução de endereços (NAT) do Gateway está funcionando:
 
 1. **Ping para a rede do IFAL:**
    
+```bash
+$ ping 172.20.20.1
+```
+
+
 2. **Ping para a Internet Pública (DNS Cloudflare):**
+
+```bash
+$ ping 1.1.1.1
+```
    
 3. **Ping por Nome de Domínio (Resolução DNS):**
    
+```bash
+$ ping google.com
+```
 
 ### Teste 3: Rastreamento de Rotas a partir da VM2 (Traceroute)
 Inspecione a sequência de saltos para comprovar que o tráfego da VM2 passa obrigatoriamente pela VM1 ():
