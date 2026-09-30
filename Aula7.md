@@ -42,7 +42,7 @@ Em redes corporativas e residenciais, o **Gateway NAT** reescreve o endereço IP
     title="" width="400" height="280"/> <br/>
 
 <p><center> Figura 3: Gateway Interface 2 em modo Rede Interna (intnet) </center></p>   
-   <img src="figuras/fig3-inteface-gw2.png" alt=""
+   <img src="figuras/fig3-interface-gw2.png" alt=""
     title="" width="400" height="280"/> <br/>
 
 ## 3. Topologia de Rede e Definições de IP
