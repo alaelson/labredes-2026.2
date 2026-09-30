@@ -23,18 +23,18 @@ Em redes corporativas e residenciais, o **Gateway NAT** reescreve o endereço IP
 ### Tabela 1: Definições da Rede Externa (WAN - Interface  da VM1)
 | Parâmetro | Endereço / Configuração |
 | :--- | :--- |
-| **Rede Externa (WAN)** |  |
-| **Máscara de Sub-rede** |  () |
-| **IP do Gateway Externo** |  |
+| **Rede Externa (WAN)** | 172.20.23.1 |
+/| **Máscara de Sub-rede** |  (255.255.252.0) |
+| **IP do Gateway Externo** | 172.20.20.1 |
 | **IP da VM1 (Interface )** |  *(IP estático definido na Aula 06)* |
-| **Servidores DNS** | , ,  |
+| **Servidores DNS** | 8.8.8.8, ,  |
 
 ### Tabela 2: Definições da Rede Interna (LAN -  da VM1 e  da VM2)
 | Descrição / Equipamento | Endereço IP / Configuração |
 | :--- | :--- |
-| **Rede Interna (LAN)** |  |
-| **Máscara de Sub-rede** |  () |
-| **Broadcast** |  |
+| **Rede Interna (LAN)** | 10.0.0.1 |
+| **Máscara de Sub-rede** |  (255.255.255.0) |
+| **Broadcast** | 10.0.0.255 |
 | **Gateway Interno (VM1 - Interface )** | **** |
 | **Cliente da Rede Interna (VM2 - Interface )** | **** |
 
