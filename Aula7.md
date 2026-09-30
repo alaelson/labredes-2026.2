@@ -20,7 +20,7 @@ Em redes corporativas e residenciais, o **Gateway NAT** reescreve o endereço IP
 
 ## 2. Configuração das Interface no VirtualBox
 <p><center> Figura 1: VirtualBox com VMs Gateway e VM2</center></p>   
-   <img src="figures/virutalboxGW-VM2.png" alt=""
+   <img src="figuras/fig1.gw-vm2.png" alt=""
     title="" width="400" height="280"/> <br/>
 
 
