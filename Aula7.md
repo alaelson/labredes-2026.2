@@ -18,7 +18,13 @@ Em redes corporativas e residenciais, o **Gateway NAT** reescreve o endereço IP
 
 ---
 
-## 2. Topologia de Rede e Definições de IP
+## 2. Configuração das Interface no VirtualBox
+<p><center> Figura 1: VirtualBox com VMs Gateway e VM2</center></p>   
+   <img src="figures/virutalboxGW-VM2.png" alt=""
+    title="" width="400" height="280"/> <br/>
+
+
+Topologia de Rede e Definições de IP
 
 ### Tabela 1: Definições da Rede Externa (WAN - Interface  da VM1)
 | Parâmetro | Endereço / Configuração |
