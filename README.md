@@ -13,13 +13,13 @@ Para manter a padronização das práticas, a compatibilidade de redes e a segur
 *   **Hipervisor:** [VirtualBox](https://www.virtualbox.org/) (com o respetivo *Extension Pack* instalado no hospedeiro).
 *   **Sistema Operacional Guest:** Ubuntu Server 26.04 LTS (64-bit).
 *   **Hardware Padrão da VM:** 512 MB de Memória RAM, 1 CPU Virtual e 32 GB de Disco Rígido (VDI, Alocação Dinâmica).
-*   **Usuário Administrativo Padrão:** `administrador` *(Nota: o usuário 'redes' do semestre anterior não é utilizado neste laboratório)*.
-*   **Senha de Laboratório:** `adminifal`.
+*   **Usuário Administrativo Padrão:**  *(Nota: o usuário 'redes' do semestre anterior não é utilizado neste laboratório)*.
+*   **Senha de Laboratório:** .
 
 ### 📁 Estrutura de Diretórios no Host (Windows do Laboratório)
-*   **Diretório de ISOs originais:** `C:\2026\BSI\VM\original`.
-*   **Diretório de Trabalho do Aluno:** `C:\2026\BSI\VM\<NomeDoAluno>`.
-*   **Servidor de Arquivos da Rede (Acesso a ISO/VM):** `\\172.20.20.21\public` (Usuário: `alunoifal` | Senha: `alunoifal`)
+*   **Diretório de ISOs originais:** .
+*   **Diretório de Trabalho do Aluno:** .
+*   **Servidor de Arquivos da Rede (Acesso a ISO/VM):**  (Usuário:  | Senha: )
 
 ---
 
@@ -28,44 +28,129 @@ Para manter a padronização das práticas, a compatibilidade de redes e a segur
 Os links abaixo apontam para os roteiros detalhados de cada prática realizada em laboratório, bem como os exercícios para fixação de conteúdo.
 
 1.  **[Aula 01: Instalação e Configuração Básica do Ubuntu Server](Aula1.md)**
-    *   Cópia da ISO a partir do compartilhamento local `\\172.20.20.21\public` para `C:\2026\BSI\VM\original`.
+    *   Cópia da ISO a partir do compartilhamento local  para .
     *   Criação de VM no VirtualBox.
-    *   Particionamento avançado de disco usando LVM: `/` (29 GB), `/boot` (1 GB) e `SWAP` (2 GB).
-    *   Primeiro boot, atualização de repositórios (`apt-get update`) e verificação de conectividade básica.
+    *   Particionamento avançado de disco usando LVM:  (29 GB),  (1 GB) e  (2 GB).
+    *   Primeiro boot, atualização de repositórios (Ign:1 http://deb.debian.org/debian bookworm InRelease
+Ign:2 https://deb.nodesource.com/node_22.x nodistro InRelease
+Ign:3 http://deb.debian.org/debian bookworm-updates InRelease
+Ign:4 http://deb.debian.org/debian-security bookworm-security InRelease
+Ign:2 https://deb.nodesource.com/node_22.x nodistro InRelease
+Ign:1 http://deb.debian.org/debian bookworm InRelease
+Ign:3 http://deb.debian.org/debian bookworm-updates InRelease
+Ign:4 http://deb.debian.org/debian-security bookworm-security InRelease
+Ign:2 https://deb.nodesource.com/node_22.x nodistro InRelease
+Ign:1 http://deb.debian.org/debian bookworm InRelease
+Ign:3 http://deb.debian.org/debian bookworm-updates InRelease
+Ign:4 http://deb.debian.org/debian-security bookworm-security InRelease
+Err:2 https://deb.nodesource.com/node_22.x nodistro InRelease
+  Temporary failure resolving 'deb.nodesource.com'
+Err:1 http://deb.debian.org/debian bookworm InRelease
+  Temporary failure resolving 'deb.debian.org'
+Err:3 http://deb.debian.org/debian bookworm-updates InRelease
+  Temporary failure resolving 'deb.debian.org'
+Err:4 http://deb.debian.org/debian-security bookworm-security InRelease
+  Temporary failure resolving 'deb.debian.org'
+Reading package lists...) e verificação de conectividade básica.
 2.  **[Aula 02: Administração de Usuários, Grupos e Permissões](Aula2.md)**
-    *   Criação e gerenciamento de contas de usuários (`fulano`, `cicrano`, `beltrano` e `novato`).
-    *   Criação de grupos de trabalho (`devs`) e atribuição de membros.
-    *   Configuração fina de permissões em diretórios compartilhados (`chown`, `chgrp`, `chmod`).
+    *   Criação e gerenciamento de contas de usuários (, ,  e ).
+    *   Criação de grupos de trabalho () e atribuição de membros.
+    *   Configuração fina de permissões em diretórios compartilhados (, , ).
     *   Testes de controle de acesso local e isolamento de segurança.
 3.  **[Aula 03: Estrutura de Diretórios, Pastas do Sistema e Permissões FHS](Aula3.md)**
-    *   Navegação e utilidade das pastas do padrão FHS (`/etc`, `/var`, `/srv`, `/bin`, `/sbin`, etc.).
-    *   Criação recursiva de diretórios aninhados corporativos usando `mkdir -p`.
-    *   Aplicação de permissões avançadas de segurança (`770` / `drwxrwx---`) em grupos organizacionais (`ti-dept`, `vendas-dept`).
+    *   Navegação e utilidade das pastas do padrão FHS (, , , , , etc.).
+    *   Criação recursiva de diretórios aninhados corporativos usando .
+    *   Aplicação de permissões avançadas de segurança ( / ) em grupos organizacionais (, ).
     *   Simulação de restrição de navegação e tratativas de segurança de arquivos no Linux.
     *   **[Exercícios de Revisão — Aulas 1, 2 e 3 (Google Forms)](Exercicios-Aula3.md)**: Lista completa de exercícios integrados de fixação para autoavaliação.
 4.  **[Aula 04: Manipulação, Edição, Permissões e Automação de Arquivos](Aula4.md)**
     *   Edição de texto no terminal com os editores Nano e Vim (modos, comandos e atalhos de salvamento).
-    *   Comandos práticos de manipulação (`touch`, `cp`, `mv`, `rm -i`) e paginação/leitura de logs (`cat`, `less`, `head`, `tail`).
-    *   Automação administrativa: criação de scripts executáveis em shell (Bash) usando laço `for` para criação de usuários (`useradd -m`) e definição de senhas em lote (`chpasswd`).
-    *   Auditoria do sistema de contas e grupos locais usando o utilitário `getent` (`getent passwd` e `getent group`).
+    *   Comandos práticos de manipulação (, , , ) e paginação/leitura de logs (, , , ).
+    *   Automação administrativa: criação de scripts executáveis em shell (Bash) usando laço  para criação de usuários () e definição de senhas em lote ().
+    *   Auditoria do sistema de contas e grupos locais usando o utilitário Try `getent --help' or `getent --usage' for more information. (root:x:0:0:root:/root:/bin/bash
+daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
+bin:x:2:2:bin:/bin:/usr/sbin/nologin
+sys:x:3:3:sys:/dev:/usr/sbin/nologin
+sync:x:4:65534:sync:/bin:/bin/sync
+games:x:5:60:games:/usr/games:/usr/sbin/nologin
+man:x:6:12:man:/var/cache/man:/usr/sbin/nologin
+lp:x:7:7:lp:/var/spool/lpd:/usr/sbin/nologin
+mail:x:8:8:mail:/var/mail:/usr/sbin/nologin
+news:x:9:9:news:/var/spool/news:/usr/sbin/nologin
+uucp:x:10:10:uucp:/var/spool/uucp:/usr/sbin/nologin
+proxy:x:13:13:proxy:/bin:/usr/sbin/nologin
+www-data:x:33:33:www-data:/var/www:/usr/sbin/nologin
+backup:x:34:34:backup:/var/backups:/usr/sbin/nologin
+list:x:38:38:Mailing List Manager:/var/list:/usr/sbin/nologin
+irc:x:39:39:ircd:/run/ircd:/usr/sbin/nologin
+_apt:x:42:65534::/nonexistent:/usr/sbin/nologin
+nobody:x:65534:65534:nobody:/nonexistent:/usr/sbin/nologin
+systemd-network:x:998:998:systemd Network Management:/:/usr/sbin/nologin
+messagebus:x:100:101::/nonexistent:/usr/sbin/nologin
+sandbox:x:1000:1000::/home/sandbox:/bin/sh e root:x:0:
+daemon:x:1:
+bin:x:2:
+sys:x:3:
+adm:x:4:
+tty:x:5:
+disk:x:6:
+lp:x:7:
+mail:x:8:
+news:x:9:
+uucp:x:10:
+man:x:12:
+proxy:x:13:
+kmem:x:15:
+dialout:x:20:
+fax:x:21:
+voice:x:22:
+cdrom:x:24:
+floppy:x:25:
+tape:x:26:
+sudo:x:27:
+audio:x:29:
+dip:x:30:
+www-data:x:33:
+backup:x:34:
+operator:x:37:
+list:x:38:
+irc:x:39:
+src:x:40:
+shadow:x:42:
+utmp:x:43:
+video:x:44:
+sasl:x:45:
+plugdev:x:46:
+staff:x:50:
+games:x:60:
+users:x:100:
+nogroup:x:65534:
+systemd-journal:x:999:
+systemd-network:x:998:
+messagebus:x:101:
+sandbox:x:1000:).
     *   **[Exercícios de Revisão — Aulas 1 a 4 (Google Forms)](Exercicios-Aula4.md)**: Lista completa de exercícios integrados de fixação para autoavaliação.
-5.  **[Aula 05: Acesso Remoto SSH via Redirecionamento de Portas no VirtualBox e Diagnóstico de Rede](Aula5.md)**
-    *   Entendimento do funcionamento do modo NAT no VirtualBox e redirecionamento de portas (Host: `5222` -> Guest: `22`).
-    *   Diagnóstico e inspeção de rede com `netplan status`, `ifconfig` (Linux) e `ipconfig /all` (Windows Host).
-    *   Leitura de tabela de roteamento com `route -n`, teste de saltos com `traceroute` e auditoria de sessões ativas com `w` (`tty1` vs `pts/0`).
-    *   Monitoramento de portas de rede no Windows Host com `netstat -an | findstr 5222` (estados antes, depois e em conexão).
-6.  **[Aula 06: Configuração de Rede Estática com Netplan e Modo Placa em Ponte (Bridge Adapter) no VirtualBox](Aula6.md)**
-    *   Reconfiguração do adaptador de rede no VirtualBox do modo NAT para **Placa em Ponte (Bridge Adapter)**.
-    *   Busca de IP livre na sub-rede `172.20.20.0/22` a partir de `172.20.23.1` via `ping` no PowerShell do Windows.
-    *   Edição e configuração do arquivo **`/etc/netplan/00-installer-config.yaml`** com o renderizador `networkd`, IP estático `/22`, rotas e servidores DNS.
-    *   Exibição do arquivo YAML via `cat`, aplicação das regras com `sudo netplan apply` e checagem com `ip addr show` e `netplan status`.
-    *   Testes de conectividade bidirecional (ping Host <-> Guest) e diagnósticos de rota com `traceroute google.com` e `traceroute one.one.one.one`.
-7.  *Aula 07: Implantação de Rede Virtual Privada com OpenVPN no Linux (Em breve)*
+5.  **[Aula 05: Acesso Remoto SSH via Redirecionamento de Portas e Diagnóstico de Rede](Aula5.md)**
+    *   Configuração do modo NAT no VirtualBox e regra de redirecionamento de portas (Porta Host  -> Porta Guest ).
+    *   Inspeção de interfaces com ,  (Linux) e  (Windows).
+    *   Diagnóstico de rotas e terminais com ,  e  22:14:12 up 0 min,  0 user,  load average: 0.00, 0.00, 0.00
+USER     TTY      FROM             LOGIN@   IDLE   JCPU   PCPU WHAT.
+    *   Análise de portas no PowerShell com  antes, depois e durante a conexão SSH.
+6.  **[Aula 06: Configuração de Rede Estática com Netplan e Modo Placa em Ponte (Bridge Adapter)](Aula6.md)**
+    *   Transição do adaptador VirtualBox para o modo Placa em Ponte (Bridge Adapter).
+    *   Busca de IP livre a partir de  na sub-rede .
+    *   Configuração de IP estático, gateway e DNS no arquivo oficial  ().
+    *   Validação com , ,  bidirecional e .
+7.  **[Aula 07: Roteamento e Gateway NAT com IPTables e Rede Interna no VirtualBox](Aula7.md)**
+    *   Topologia com 2 VMs: VM1 (Gateway com Bridge e Rede Interna) e VM2 (Cliente exclusivo em Rede Interna).
+    *   Configuração de rede interna ( na VM1 e  na VM2 apontando gateway ).
+    *   Ativação de encaminhamento de pacotes () e mascaramento IPTables () na VM1.
+    *   Bateria de testes de conectividade local e externa ( e  para  e  a partir da VM2).
 
 ---
 
 ### 📑 Avaliações da Disciplina
-*   **[Avaliação Prático-Teórica I (Template de Entrega)](template-prova-1.md)**: Atividade integrada de laboratório baseada na importação da VM `UbuntuAvaliacao1.ova` (disponível em `\\172.20.20.21\public\avaliacao1`). Contém 10 questões que mesclam a prática de terminal com reflexões teóricas de administração de usuários, permissões, criação de dados estruturados JSON e automação de relatórios eleitorais via Shell Script (`cadastrarcandidatos.sh`).
+*   **[Avaliação Prático-Teórica I (Template de Entrega)](template-prova-1-v2.md)**: Atividade integrada de laboratório baseada na importação da VM  (disponível em ). Contém 10 questões que mesclam a prática de terminal com reflexões teóricas de administração de usuários, permissões, criação de dados estruturados JSON e automação de relatórios eleitorais via Shell Script ().
 
 ---
 
@@ -79,7 +164,7 @@ Os relatórios devem seguir estritamente o **Modelo de 7 Passos** estabelecido:
 2.  **Objetivo:** Explicação clara do serviço ou configuração que se pretendia realizar.
 3.  **Ambiente:** Detalhamento do cenário de testes (especificações da VM, endereços IP, etc.).
 4.  **Procedimento:** Descrição passo a passo dos comandos executados e arquivos de configuração modificados.
-5.  **Testes:** Evidências de funcionamento (capturas de tela, saídas de comandos como `ping`, `ip addr`, etc.).
+5.  **Testes:** Evidências de funcionamento (capturas de tela, saídas de comandos como , , etc.).
 6.  **Problemas e Soluções:** Registro de quaisquer erros encontrados durante a prática e como foram solucionados.
 7.  **Conclusão:** Reflexão sobre o que foi validado e aprendido na atividade.
 
@@ -88,9 +173,7 @@ Os relatórios devem seguir estritamente o **Modelo de 7 Passos** estabelecido:
 ## 🛠️ Dicas de Laboratório e Solução de Problemas
 
 *   **Teclado Desconfigurado no Console:** Caso o layout do seu teclado esteja incorreto no terminal virtual da VM, configure-o para o padrão brasileiro ABNT2 com o comando:
-    ```bash
-    sudo dpkg-reconfigure keyboard-configuration
-    ```
+    
 *   **Isolamento no VirtualBox:** Ao realizar configurações de rede interna, lembre-se de que o modo *Host-Only* permite que a sua máquina real acesse a máquina virtual, mas impede que ela acesse a internet pública diretamente sem um serviço de NAT ou roteamento ativado.
 
 ---
