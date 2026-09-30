@@ -18,11 +18,18 @@ Em redes corporativas e residenciais, o **Gateway NAT** reescreve o endereço IP
 
 ---
 
-## 2. Configuração das Interface no VirtualBox
+## 2. Configuração das Interfaces no VirtualBox
 <p><center> Figura 1: VirtualBox com VMs Gateway e VM2</center></p>   
    <img src="figuras/fig1.gw-vm2.png" alt=""
     title="" width="400" height="280"/> <br/>
 
+<p><center> Figura 2: Gateway Interface 1 em modo Bridge </center></p>   
+   <img src="figuras/fig2-intefaces-gw.png" alt=""
+    title="" width="400" height="280"/> <br/>
+
+<p><center> Figura 3: Gateway Interface 2 em modo Rede Interna (intnet) </center></p>   
+   <img src="figuras/fig2-intefaces-gw2.png" alt=""
+    title="" width="400" height="280"/> <br/>
 
 Topologia de Rede e Definições de IP
 
