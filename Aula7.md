@@ -45,6 +45,17 @@ Em redes corporativas e residenciais, o **Gateway NAT** reescreve o endereço IP
    <img src="figuras/fig3-interface-gw2.png" alt=""
     title="" width="400" height="280"/> <br/>
 
+    ### 2.2. Configuração da VM2 (Cliente)
+1. No VirtualBox, selecione a **VM1** () e abra **Configurações -> Rede**.
+2. **Adaptador 1 ( - WAN):**
+   * **Habilitar Placa de Rede:** Marcado
+   * **Conectado a:** **Rede Interna (Internal Network)**
+   * **Nome:** Digite o nome da rede interna (ex: ).
+<p><center> Figura 4: VM2 Interface em modo Rede Interna (intnet) </center></p>   
+   <img src="figuras/fig4-interface-vm2.png" alt=""
+    title="" width="400" height="280"/> <br/>
+
+
 ## 3. Topologia de Rede e Definições de IP
 
 ### Tabela 1: Definições da Rede Externa (WAN - Interface  da VM1)
