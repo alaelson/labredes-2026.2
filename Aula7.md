@@ -45,7 +45,7 @@ Em redes corporativas e residenciais, o **Gateway NAT** reescreve o endereço IP
    <img src="figuras/fig3-interface-gw2.png" alt=""
     title="" width="400" height="280"/> <br/>
 
-    ### 2.2. Configuração da VM2 (Cliente)
+### 2.2. Configuração da VM2 (Cliente)
 1. No VirtualBox, selecione a **VM1** () e abra **Configurações -> Rede**.
 2. **Adaptador 1 ( - WAN):**
    * **Habilitar Placa de Rede:** Marcado
