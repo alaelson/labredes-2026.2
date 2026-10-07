@@ -22,6 +22,7 @@ hostname
 ```bash
 sudo hostnamectl set-hostname vm2-cliente
 hostname
+```
 
 ## 1. Habilitar encaminhamento de IP (VM1)
 
