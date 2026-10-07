@@ -53,24 +53,9 @@ sudo iptables -L -n -v
 
 ---
 
-## 3. Persistência das Regras
+## 3. Testes de Conectividade (na VM2 - cliente)
 
-Instalar e salvar:
-```bash
-sudo apt update
-sudo apt install -y iptables-persistent
-sudo netfilter-persistent save
-```
-
-As regras ficam em /etc/iptables/rules.v4 (IPv4) e /etc/iptables/rules.v6 (IPv6).
-
-Alternativas: criar unit systemd que aplica regras no boot ou usar ferramentas de gerenciamento (ansible, scripts).
-
----
-
-## 4. Testes de Conectividade (na VM2 - cliente)
-
-### 4.1: Edição do Netplan na VM2
+### 3.1: Edição do Netplan na VM2
 Edite o arquivo de rede na **VM2**:
 Insira a configuração conforme a **Tabela 2**:
 
@@ -129,6 +114,20 @@ sudo sysctl net.ipv4.ip_forward
 sudo iptables -t nat -L -n -v
 sudo iptables -L -n -v
 ```
+---
+
+## 4. Persistência das Regras
+
+Instalar e salvar:
+```bash
+sudo apt update
+sudo apt install -y iptables-persistent
+sudo netfilter-persistent save
+```
+
+As regras ficam em /etc/iptables/rules.v4 (IPv4) e /etc/iptables/rules.v6 (IPv6).
+
+Alternativas: criar unit systemd que aplica regras no boot ou usar ferramentas de gerenciamento (ansible, scripts).
 
 ---
 
