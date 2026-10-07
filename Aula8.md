@@ -4,6 +4,25 @@ Objetivo: nesta continuação aplicamos NAT/mascaramento no gateway (VM1), habil
 
 ---
 
+## 0. Configurar os nomes das VMs
+
+Para configurar os nomes internos utilizados pelo ubuntu server que aparecem no prompt, deve-se utilizar a interface *hostnamectl*
+
+| DESCRIÇÃO   | HOSTNAME      |
+|:------------|:------------- |
+| VM1         | vm1-gatewaY   |
+| VM2         | vm2-cliente   |
+
+### Na VM1
+```bash
+sudo hostnamectl set-hostname vm1-gateway
+hostname
+```
+### Na VM2
+```bash
+sudo hostnamectl set-hostname vm2-cliente
+hostname
+
 ## 1. Habilitar encaminhamento de IP (VM1)
 
 Habilitar imediatamente:
