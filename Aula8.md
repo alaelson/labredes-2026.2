@@ -10,7 +10,7 @@ Para configurar os nomes internos utilizados pelo ubuntu server que aparecem no 
 
 | DESCRIÇÃO   | HOSTNAME      |
 |:------------|:------------- |
-| VM1         | vm1-gatewaY   |
+| VM1         | vm1-gateway   |
 | VM2         | vm2-cliente   |
 
 ### Na VM1
