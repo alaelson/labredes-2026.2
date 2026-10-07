@@ -6,7 +6,7 @@ Objetivo: nesta continuação aplicamos NAT/mascaramento no gateway (VM1), habil
 
 ## 0. Configurar os nomes das VMs
 
-Para configurar os nomes internos utilizados pelo ubuntu server que aparecem no prompt, deve-se utilizar a interface *hostnamectl*
+Para configurar os nomes internos utilizados pelo ubuntu server que aparecem no prompt, deve-se utilizar a interface **hostnamectl**
 
 | DESCRIÇÃO   | HOSTNAME      |
 |:------------|:------------- |
