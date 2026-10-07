@@ -150,11 +150,11 @@ network:
       dhcp4: false
       addresses:
         - 10.0.0.2/24
-      gateway4: 10.0.0.1
       nameservers:
         addresses:
           - 172.20.20.1
           - 1.1.1.1
+          - 8.8.8.8
 
 ```
 
@@ -163,8 +163,6 @@ Aplique as alterações:
 ```bash
 $ sudo netplan apply
 ```
-
-
 
 ---
 
@@ -206,15 +204,10 @@ $ ping 1.1.1.1
 $ ping google.com
 ```
 
-### Teste 3: Rastreamento de Rotas a partir da VM2 (Traceroute)
-Inspecione a sequência de saltos para comprovar que o tráfego da VM2 passa obrigatoriamente pela VM1 ():
+### Teste 3: Rastreamento de Rotas a partir da GW (Traceroute)
+Inspecione a sequência de saltos para comprovar que o tráfego da VM2 passa obrigatoriamente pela VM1
 
-1. **Traceroute para :**
-   
-   *Análise:* O **Salto 1** (*Hop 1*) deve ser o IP interno da VM1 (), e o **Salto 2** (*Hop 2*) deve ser o gateway da rede externa ().
-
-2. **Traceroute para :**
-   
+#### OBS: AINDA NÃO VAI FUNCIONAR
 
 ---
 
@@ -228,15 +221,12 @@ Cada aluno deverá registrar o relatório técnico em seu repositório pessoal d
 2. **Print do  dos Arquivos Netplan:**
    * Saída de  na **VM1**.
    * Saída de  na **VM2**.
-3. **Print do Encaminhamento IP e IPTables na VM1:**
-   * Saída de .
-   * Saída de  exibindo a regra  ativa.
-4. **Print dos Testes de Ping na VM2:**
-   * Ping da VM2 para .
-   * Ping da VM2 para  e .
+3. **Print dos Testes de Ping na VM2:**
+   * Ping da VM2 para VM1
+   * Ping da VM2 para o Gateway (AINDA NÃO VAI FUNCIONAR)
 5. **Print dos Comandos Traceroute na VM2:**
-   * Saída do comando  na VM2.
-   * Saída do comando  na VM2.
+   * Saída do comando na VM1.
+   * Saída do comando na Gateway (AINDA NÃO VAI FUNCIONAR)
 
 ---
 
@@ -249,3 +239,9 @@ Cada aluno deverá registrar o relatório técnico em seu repositório pessoal d
 5. **Testes e Evidências:** Apresentação dos prints e comandos diagnósticos (, , , ).
 6. **Problemas e Soluções:** Registro de eventuais dificuldades enfrentadas (ex: erro no nome da rede interna, falta de habilitação do ip_forward ou firewall bloqueando) e como foram solucionados.
 7. **Conclusão:** Reflexão sobre a importância do roteamento NAT na interconexão e segurança de redes privadas.
+
+
+# Referencias
+   - [1] https://www.ascinc.com/blog/linux/how-to-build-a-simple-router-with-ubuntu-server-18-04-1-lts-bionic-beaver/
+   - [2] https://www.thomaslaurenson.com/blog/2018/07/05/building-a-ubuntu-linux-gateway/#configure-network-address-translation
+
