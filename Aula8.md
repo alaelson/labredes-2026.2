@@ -70,6 +70,36 @@ Alternativas: criar unit systemd que aplica regras no boot ou usar ferramentas d
 
 ## 4. Testes de Conectividade (na VM2 - cliente)
 
+### 4.1: Edição do Netplan na VM2
+Edite o arquivo de rede na **VM2**:
+Insira a configuração conforme a **Tabela 2**:
+
+```yaml
+network:
+  version: 2
+  renderer: networkd
+  ethernets:
+    enp0s3:
+      dhcp4: false
+      addresses:
+        - 10.0.0.2/24
+    routes:
+        - to: default
+          via: 10.0.0.1
+      nameservers:
+        addresses:
+          - 172.20.20.1
+          - 1.1.1.1
+          - 8.8.8.8
+
+```
+
+Aplique as configurações:
+Aplique as alterações:
+```bash
+$ sudo netplan apply
+```
+
 Execute os testes abaixo na VM2 após aplicar NAT no gateway:
 
 Ping
