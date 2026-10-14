@@ -12,7 +12,7 @@ Este projeto adapta o [Projeto Final de Fundamentos de Redes (bsi-26-1)](https:/
 
 ### 2. Topologia
 
-**Figura 1:** Topologia lógica e endereçamento (exemplo do Grupo 1).
+**Figura 1:** Topologia lógica e endereçamento (exemplo do Grupo 0, modelo).
 
 ![Topologia lógica](topologia-logica-etapa1.png)
 
@@ -35,46 +35,44 @@ Diagrama editável no Lucid: [LSOR BSI - Etapa 1 - Topologia com Gateway](https:
 ### 4. Endereçamento IP dos grupos
 
 - A turma **bsi-26-2** usa a rede **192.168.26.0/24**, dividida em sub-redes **/28** (255.255.255.240), uma por grupo.
-- O Grupo **X** usa a rede `192.168.26.(16 × (X − 1))/28`.
+- O Grupo **X** usa a rede `192.168.26.(16 × X)/28`: o Grupo 0 (modelo) usa o 1º range, o Grupo 1 o 2º, o Grupo 2 o 3º, e assim por diante.
 - Dentro da sub-rede do grupo, a distribuição é:
   - 1º IP útil: **gateway**, interface LAN `enp0s8`.
   - 2º ao 9º IP útil: **vm1 a vm8**.
   - Os demais endereços ficam livres.
 
-| Grupo | Rede /28 | Gateway (LAN) | vm1 … vm8 | Broadcast |
+| Grupo | Rede /28 | Gateway (LAN) | VM1 … VM8 | Broadcast |
 |:--:|:--|:--|:--|:--|
-| 1 | 192.168.26.0 | .1 | .2 – .9 | .15 |
-| 2 | 192.168.26.16 | .17 | .18 – .25 | .31 |
-| 3 | 192.168.26.32 | .33 | .34 – .41 | .47 |
-| 4 | 192.168.26.48 | .49 | .50 – .57 | .63 |
-| 5 | 192.168.26.64 | .65 | .66 – .73 | .79 |
-| 6 | 192.168.26.80 | .81 | .82 – .89 | .95 |
-| 7 | 192.168.26.96 | .97 | .98 – .105 | .111 |
-| 8 | 192.168.26.112 | .113 | .114 – .121 | .127 |
+| 0 (modelo) | 192.168.26.0 | .1 | .2 – .9 | .15 |
+| 1 | 192.168.26.16 | .17 | .18 – .25 | .31 |
+| 2 | 192.168.26.32 | .33 | .34 – .41 | .47 |
+| 3 | 192.168.26.48 | .49 | .50 – .57 | .63 |
+| 4 | 192.168.26.64 | .65 | .66 – .73 | .79 |
+| 5 | 192.168.26.80 | .81 | .82 – .89 | .95 |
 
 ### 5. Nomenclatura e domínio (FQDN)
 
 - O domínio de cada grupo segue o formato `grupoX.bsi-26-2.maceio.lab`.
-- O FQDN de cada máquina segue o formato `<host>.grupoX.bsi-26-2.maceio.lab`.
-- Exemplos:
-  - `gateway.grupo1.bsi-26-2.maceio.lab`
-  - `vm1.grupo1.bsi-26-2.maceio.lab`
-- Os hostnames `vm1` … `vm8` são sugestões. O grupo pode escolher outros nomes (ex.: bairros de Maceió), desde que mantenha o padrão do domínio.
+- Os hostnames seguem o padrão da planilha de acompanhamento: `Gx-PC1-GW` para o gateway e `Gx-PCy-VMz` para as VMs (PC 1 a 4, VM 1 ou 2 em cada PC).
+- O FQDN de cada máquina é o hostname em minúsculas seguido do domínio: `<host>.grupoX.bsi-26-2.maceio.lab`.
+- Exemplos do Grupo 1:
+  - `g1-pc1-gw.grupo1.bsi-26-2.maceio.lab`
+  - `g1-pc1-vm1.grupo1.bsi-26-2.maceio.lab`
 
-### 6. Tabela de referência — Grupo 1
+### 6. Tabela de referência — Grupo 0 (modelo)
 
 | Host | Placa / modo VirtualBox | Interface | IP / máscara | Gateway padrão | FQDN |
 |:--|:--|:--|:--|:--|:--|
-| gateway | Adaptador 1 · Bridge (WAN) | enp0s3 | 172.20.23.X/22 (IP livre) | 172.20.20.1 | gateway.grupo1.bsi-26-2.maceio.lab |
-| gateway | Adaptador 2 · Bridge (LAN) | enp0s8 | 192.168.26.1/28 | — | — |
-| vm1 (Lab01 @ PC1) | Adaptador 1 · Bridge | enp0s3 | 192.168.26.2/28 | 192.168.26.1 | vm1.grupo1.bsi-26-2.maceio.lab |
-| vm2 (Lab02 @ PC1) | Adaptador 1 · Bridge | enp0s3 | 192.168.26.3/28 | 192.168.26.1 | vm2.grupo1.bsi-26-2.maceio.lab |
-| vm3 (Lab01 @ PC2) | Adaptador 1 · Bridge | enp0s3 | 192.168.26.4/28 | 192.168.26.1 | vm3.grupo1.bsi-26-2.maceio.lab |
-| vm4 (Lab02 @ PC2) | Adaptador 1 · Bridge | enp0s3 | 192.168.26.5/28 | 192.168.26.1 | vm4.grupo1.bsi-26-2.maceio.lab |
-| vm5 (Lab01 @ PC3) | Adaptador 1 · Bridge | enp0s3 | 192.168.26.6/28 | 192.168.26.1 | vm5.grupo1.bsi-26-2.maceio.lab |
-| vm6 (Lab02 @ PC3) | Adaptador 1 · Bridge | enp0s3 | 192.168.26.7/28 | 192.168.26.1 | vm6.grupo1.bsi-26-2.maceio.lab |
-| vm7 (Lab01 @ PC4) | Adaptador 1 · Bridge | enp0s3 | 192.168.26.8/28 | 192.168.26.1 | vm7.grupo1.bsi-26-2.maceio.lab |
-| vm8 (Lab02 @ PC4) | Adaptador 1 · Bridge | enp0s3 | 192.168.26.9/28 | 192.168.26.1 | vm8.grupo1.bsi-26-2.maceio.lab |
+| G0-PC1-GW | Adaptador 1 · Bridge (WAN) | enp0s3 | 172.20.23.X/22 (IP livre) | 172.20.20.1 | g0-pc1-gw.grupo0.bsi-26-2.maceio.lab |
+| G0-PC1-GW | Adaptador 2 · Bridge (LAN) | enp0s8 | 192.168.26.1/28 | — | — |
+| G0-PC1-VM1 (VM1) | Adaptador 1 · Bridge | enp0s3 | 192.168.26.2/28 | 192.168.26.1 | g0-pc1-vm1.grupo0.bsi-26-2.maceio.lab |
+| G0-PC1-VM2 (VM2) | Adaptador 1 · Bridge | enp0s3 | 192.168.26.3/28 | 192.168.26.1 | g0-pc1-vm2.grupo0.bsi-26-2.maceio.lab |
+| G0-PC2-VM1 (VM3) | Adaptador 1 · Bridge | enp0s3 | 192.168.26.4/28 | 192.168.26.1 | g0-pc2-vm1.grupo0.bsi-26-2.maceio.lab |
+| G0-PC2-VM2 (VM4) | Adaptador 1 · Bridge | enp0s3 | 192.168.26.5/28 | 192.168.26.1 | g0-pc2-vm2.grupo0.bsi-26-2.maceio.lab |
+| G0-PC3-VM1 (VM5) | Adaptador 1 · Bridge | enp0s3 | 192.168.26.6/28 | 192.168.26.1 | g0-pc3-vm1.grupo0.bsi-26-2.maceio.lab |
+| G0-PC3-VM2 (VM6) | Adaptador 1 · Bridge | enp0s3 | 192.168.26.7/28 | 192.168.26.1 | g0-pc3-vm2.grupo0.bsi-26-2.maceio.lab |
+| G0-PC4-VM1 (VM7) | Adaptador 1 · Bridge | enp0s3 | 192.168.26.8/28 | 192.168.26.1 | g0-pc4-vm1.grupo0.bsi-26-2.maceio.lab |
+| G0-PC4-VM2 (VM8) | Adaptador 1 · Bridge | enp0s3 | 192.168.26.9/28 | 192.168.26.1 | g0-pc4-vm2.grupo0.bsi-26-2.maceio.lab |
 
 ### 7. Requisitos de configuração
 
@@ -102,7 +100,7 @@ Diagrama editável no Lucid: [LSOR BSI - Etapa 1 - Topologia com Gateway](https:
 
 ### Etapa 1 — data a definir
 
-a) Apresentar as tabelas de definições de **nomes e IPs** de todas as VMs, incluindo o gateway (seções 4 a 6).
+a) Preencher, na planilha de acompanhamento, as tabelas de **nomes e IPs** de todas as VMs do grupo, incluindo o gateway (seções 4 a 6).
 
 b) Apresentar o **diagrama de topologia** do grupo, adaptado das Figuras 1 e 2 com os IPs do grupo.
 
