@@ -149,6 +149,11 @@ USER     TTY      FROM             LOGIN@   IDLE   JCPU   PCPU WHAT.
 
 ---
 
+### 🧩 Projeto da Disciplina
+*   **[Projeto — Etapa 1: Rede virtualizada com 8 VMs e Gateway NAT](projeto/README.md)**: Topologia com 8 VMs Ubuntu Server e uma VM gateway (Bridge WAN em `172.20.20.0/22` e LAN do grupo em `192.168.26.x/28`), tabelas de endereçamento e FQDN no domínio `grupoX.bsi-26-2.maceio.lab`.
+
+---
+
 ### 📑 Avaliações da Disciplina
 *   **[Avaliação Prático-Teórica I (Template de Entrega)](template-prova-1-v2.md)**: Atividade integrada de laboratório baseada na importação da VM  (disponível em ). Contém 10 questões que mesclam a prática de terminal com reflexões teóricas de administração de usuários, permissões, criação de dados estruturados JSON e automação de relatórios eleitorais via Shell Script ().
 
