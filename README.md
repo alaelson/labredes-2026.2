@@ -82,6 +82,12 @@ Os links abaixo apontam para os roteiros detalhados de cada prática realizada e
 
 ---
 
+### 📊 Notas e Correções
+*   **[Boletim — Etapa 1](boletim.md)**: Notas das Atividades 1, 2 e 3, da Avaliação 1 e da Nota 1, com a composição das notas da etapa. Alunos identificados pela matrícula.
+*   **[Relatórios Individuais de Atividades](relatorio_atividades/README.md)**: Correção comentada das Aulas 1 a 8 de cada aluno, com o que foi feito corretamente e como melhorar.
+
+---
+
 ## 📝 Diretrizes para Entrega de Relatórios Técnicos
 
 Como parte do comportamento profissional esperado na disciplina, todas as práticas de laboratório devem ser documentadas individualmente pelos alunos em seus respectivos repositórios pessoais no GitHub.
