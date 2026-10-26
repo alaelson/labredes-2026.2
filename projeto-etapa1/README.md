@@ -103,21 +103,21 @@ Somente a interface WAN (`enp0s3`) do gateway recebe um IP desta rede. As VMs do
 ### 8. Usuários
 
 - Cada uma das 9 VMs tem o **usuário administrador** criado na instalação (`administrador`) e **um usuário para cada integrante** do grupo.
-- O nome de usuário de cada integrante é o informado na coluna **"Usuário da VM"** da planilha de acompanhamento, no formato `nome.sobrenome`, em minúsculas, sem acentos e sem espaços (ex.: `fulano.silva`).
+- O nome de usuário de cada integrante é o informado na coluna **"Usuário da VM"** da planilha de acompanhamento, no formato `nome.sobrenome`, em minúsculas, sem acentos e sem espaços (ex.: `fulano.tal`).
 - O conjunto de usuários é **o mesmo em todas as VMs**, inclusive no gateway.
 - Cada usuário tem diretório home em `/home/<usuário>`, shell `/bin/bash` e pertence ao grupo `sudo`.
 
 Exemplo para o Grupo 0, executado em cada VM (ver [Aula 04](../Aula4.md)) [6]:
 
 ```bash
-for u in fulano.silva beltrano.souza cicrano.santos deltrano.lima; do
+for u in fulano.tal fulustreca.grudes beltrano.silva cicrano.souza; do
   sudo useradd -m -s /bin/bash "$u"
   sudo usermod -aG sudo "$u"
   sudo passwd "$u"
 done
 
 # Verificação
-getent passwd fulano.silva beltrano.souza cicrano.santos deltrano.lima
+getent passwd fulano.tal fulustreca.grudes beltrano.silva cicrano.souza
 ls -l /home
 ```
 
