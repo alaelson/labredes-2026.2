@@ -243,7 +243,7 @@ c) Criar a página do projeto do grupo no GitHub, com o tutorial seguindo o Mode
 
 ### Etapa 2 (final) — data a definir
 
-Entrega e apresentação final do ambiente funcionando, com o tutorial completo e as evidências de testes.
+Entrega e apresentação final do ambiente funcionando, com o tutorial completo e as evidências de testes. Os requisitos estão no enunciado do [Projeto Final](../projeto-final/README.md).
 
 ---
 

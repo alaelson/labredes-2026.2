@@ -74,6 +74,7 @@ Os links abaixo apontam para os roteiros detalhados de cada prática realizada e
 
 ### 🧩 Projeto da Disciplina
 *   **[Projeto — Etapa 1: Rede virtualizada com 8 VMs e Gateway NAT](projeto-etapa1/README.md)**: Cada grupo monta uma rede com 8 VMs Ubuntu Server distribuídas em 4 PCs do laboratório e uma VM gateway, todas em modo Placa em Ponte. O Grupo X usa a sub-rede `192.168.26.(16 × X)/28`, e o gateway liga essa rede à rede do laboratório (`172.20.20.0/22`) com encaminhamento de pacotes e NAT. Inclui a padronização de hostnames e FQDN no domínio `grupoX.bsi-26-2.maceio.lab`, do `/etc/hosts` e dos usuários dos integrantes em todas as VMs. Tem como base as Aulas 01 a 08.
+*   **[Projeto Final: Serviços de rede com login unificado](projeto-final/README.md)**: Sobre a rede da Etapa 1, cada VM do grupo passa a oferecer um serviço: DNS primário e secundário (BIND9), diretório OpenLDAP com TLS, servidor de arquivos (Samba), servidor web LAMP com área restrita, SFTP com *chroot* e e-mail (Postfix e Dovecot). Todas as VMs autenticam no LDAP pelo SSSD, de modo que cada integrante usa uma única conta e senha em todos os serviços. O gateway publica a página do grupo e o SFTP na rede do laboratório com redirecionamento de portas (DNAT).
 
 ---
 
