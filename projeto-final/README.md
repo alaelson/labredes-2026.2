@@ -249,7 +249,7 @@ O grupo documenta tudo no **repositório do projeto do grupo no GitHub**, com o 
 
 ### Bônus (opcional)
 
-Para quem terminar antes: firewall no `gw` com política `DROP` na cadeia `FORWARD`; TLS (StartTLS) no LDAP; e-mail com Postfix e Dovecot na VM7; backup do banco e do LDAP com `cron`.
+Para quem terminar antes: as configurações de segurança da [Aula 12 (extra)](../Aula12.md) — chaves SSH, TLS no LDAP, HTTPS, Samba seguro e DNSSEC. Outras opções: firewall no `gw` com política `DROP` na cadeia `FORWARD`; e-mail com Postfix e Dovecot na VM7; backup do banco e do LDAP com `cron`.
 
 ---
 

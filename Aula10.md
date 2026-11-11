@@ -12,8 +12,8 @@ Objetivo: entender como funciona um diretório LDAP e montar, na VM `ldap`, o **
 
 | Tempo | Parte | Conteúdo |
 |:--|:--|:--|
-| 0–15 min | Teoria | LDAP: árvore do diretório, DN, classes de objeto, LDIF e login unificado (seção 1) |
-| 15–40 min | Prática 1 | OpenLDAP na VM `ldap`: grupos e contas dos integrantes (seções 2 e 3) |
+| 0–20 min | Teoria | Contas locais × diretório; LDAP e OpenLDAP; árvore, DN e LDIF; NSS, PAM e SSSD (seção 1) |
+| 20–40 min | Prática 1 | OpenLDAP na VM `ldap`: grupos e contas dos integrantes (seções 2 e 3) |
 | 40–60 min | Prática 2 | Login unificado: remover as contas locais, SSSD no `cliente`, `www` e `arquivos` e teste por SSH (seções 4, 5 e 6) |
 | 60–85 min | Prática 3 | Samba no `arquivos`: primeiro sem login unificado, depois com as contas do LDAP (seção 7) |
 | 85–90 min | Fechamento | O que precisa estar pronto para a Aula 11 (seção 9) |
@@ -24,9 +24,50 @@ Em sala, o SSSD é ligado em três VMs (`cliente`, `www` e `arquivos`). O grupo 
 
 ## 1. Conceitos
 
-### 1.1 Diretório LDAP
+### 1.1 O problema: uma conta em cada máquina
 
-O LDAP é um protocolo de acesso a um **diretório**: um banco de dados organizado em árvore, otimizado para muitas leituras e poucas escritas, usado para guardar as contas, os grupos e as senhas de uma organização [1, 2]. Com o esquema da RFC 2307, cada entrada guarda os mesmos campos de `/etc/passwd` e `/etc/group` [3].
+Na Etapa 1, cada integrante ganhou uma **conta local** em cada VM, guardada nos arquivos da própria VM:
+
+| Arquivo | O que guarda | Exemplo de linha |
+|:--|:--|:--|
+| `/etc/passwd` | Contas: login, UID, GID do grupo primário, nome, home e shell | `fulano.tal:x:1001:1001:Fulano de Tal:/home/fulano.tal:/bin/bash` |
+| `/etc/shadow` | O *hash* da senha de cada conta (só o `root` lê) | `fulano.tal:$y$j9T$...:20400:0:99999:7:::` |
+| `/etc/group` | Grupos e seus membros | `sudo:x:27:administrador,fulano.tal` |
+
+Com 4 integrantes e 9 VMs, são **36 contas** para criar e manter. Se `fulano.tal` troca a senha no `www`, a senha antiga continua valendo no `bd`. Se alguém sai do grupo, é preciso apagar a conta em 9 lugares. E nada garante que o UID de `fulano.tal` seja o mesmo em todas as VMs, o que bagunça os donos dos arquivos compartilhados.
+
+A solução é guardar as contas **num só lugar**, um **diretório** na rede, e fazer todas as VMs consultarem esse lugar. É o **login unificado**.
+
+### 1.2 Diretório, LDAP e OpenLDAP
+
+| Termo | Definição |
+|:--|:--|
+| **Diretório** | Banco de dados especializado em guardar informações sobre **pessoas, grupos e recursos** de uma organização, organizado em **árvore** e otimizado para muitas leituras e poucas escritas. É diferente de um banco relacional como o MariaDB (Aula 11), que guarda tabelas e é otimizado para transações. Exemplo do dia a dia: a lista de contatos institucional do IFAL |
+| **LDAP** (*Lightweight Directory Access Protocol*) | **Protocolo** para consultar e alterar um diretório pela rede, na porta **389/TCP**. Foi criado na Universidade de Michigan, em 1993, como uma versão "leve" do protocolo de diretórios X.500, e hoje é definido pela RFC 4511 [2]. O Active Directory, da Microsoft, também fala LDAP |
+| **OpenLDAP** | Implementação livre do LDAP, mantida pela OpenLDAP Foundation desde 1998. Tem o servidor e as ferramentas de linha de comando (`ldapsearch`, `ldapadd`, `ldapmodify`, `ldappasswd`) [1] |
+| **`slapd`** | O programa servidor do OpenLDAP (*stand-alone LDAP daemon*): é ele que escuta na porta 389 na VM `ldap` |
+| **Entrada** | Cada nó da árvore: um usuário, um grupo ou uma pasta (OU). Equivale a uma linha de uma tabela |
+| **Atributo** | Um campo de uma entrada, com nome e valor: `uid: fulano.tal`, `uidNumber: 10001` |
+| **Esquema** (*schema*) | Conjunto de regras que define quais atributos e classes de objeto existem. O esquema da **RFC 2307** cria as classes `posixAccount` e `posixGroup`, com os mesmos campos de `/etc/passwd` e `/etc/group` [3] |
+
+**Exemplo:** a mesma conta de `fulano.tal`, primeiro como linha do `/etc/passwd` e depois como entrada do LDAP (em formato LDIF):
+
+```
+fulano.tal:x:10001:10000:Fulano de Tal:/home/fulano.tal:/bin/bash
+```
+
+```ldif
+dn: uid=fulano.tal,ou=usuarios,dc=grupo0,dc=bsi-26-2,dc=maceio,dc=lab
+objectClass: posixAccount
+uid: fulano.tal
+uidNumber: 10001
+gidNumber: 10000
+cn: Fulano de Tal
+homeDirectory: /home/fulano.tal
+loginShell: /bin/bash
+```
+
+### 1.3 A árvore do diretório
 
 **Figura 1:** Árvore do diretório do Grupo 0.
 
@@ -65,9 +106,75 @@ flowchart TD
 | senha (no `/etc/shadow`) | `userPassword` | `{SSHA}...` |
 | membros do grupo | `memberUid` (no `posixGroup`) | `fulano.tal` |
 
-### 1.2 Login unificado
+### 1.4 Como o Linux encontra um usuário: NSS, PAM e SSSD
 
-Quando o Linux procura um usuário, ele consulta o **NSS** (quem é: UID, grupos, home) e o **PAM** (a senha confere?). Com o **SSSD**, essas consultas vão ao LDAP, e a mesma conta passa a valer em todas as VMs [5, 6]:
+Os programas do Linux (`ssh`, `login`, `sudo`, `ls`, o Samba) **não leem** o `/etc/passwd` diretamente. Eles fazem duas perguntas diferentes ao sistema, respondidas por dois mecanismos diferentes:
+
+| Pergunta | Mecanismo | Exemplo de quem pergunta |
+|:--|:--|:--|
+| **Quem é** `fulano.tal`? Qual o UID, os grupos, o home e o shell? E o contrário: de quem é o UID 10001? | **NSS** | `ls -l` (mostra o nome do dono de cada arquivo), `id`, `getent` |
+| **A senha confere?** A conta pode entrar agora? O que fazer ao abrir a sessão? | **PAM** | `ssh`, `login`, `sudo`, `su` |
+
+Por isso basta trocar a **fonte** das respostas, sem mudar os programas, para todas as contas passarem a vir do LDAP.
+
+#### NSS — *Name Service Switch*
+
+O **NSS** é a parte da biblioteca padrão do C (glibc) que decide **de onde** vêm as informações de usuários, grupos, nomes de máquinas e outros "bancos" do sistema. A ideia veio do Solaris, nos anos 1990. A configuração está no arquivo **`/etc/nsswitch.conf`**: para cada banco, a lista de fontes, consultadas na ordem.
+
+```
+passwd:   files sss
+group:    files sss
+hosts:    files dns
+```
+
+(Em algumas instalações aparece também `systemd` nas duas primeiras linhas.)
+
+- `files` = os arquivos locais (`/etc/passwd`, `/etc/group`, `/etc/hosts`);
+- `sss` = o SSSD (acrescentado pelo pacote `libnss-sss`);
+- a linha `hosts: files dns` é a que fez o `ping www` da Aula 09 consultar primeiro o `/etc/hosts` e depois o DNS.
+
+O comando **`getent`** (*get entries*) faz uma consulta pelo NSS e mostra a resposta, venha ela de onde vier:
+
+```bash
+getent passwd administrador     # vem de files (/etc/passwd)
+getent passwd fulano.tal        # depois desta aula, vem de sss (LDAP)
+getent hosts www                # vem de dns
+```
+
+Como `files` vem antes de `sss`, uma conta local com o mesmo login **esconde** a conta do LDAP. É por isso que as contas locais da Etapa 1 são removidas (seção 4).
+
+#### PAM — *Pluggable Authentication Modules*
+
+O **PAM** é a camada de **autenticação** do Linux. Criado pela Sun em 1995 e adotado no Linux como Linux-PAM, ele permite que cada programa autentique usuários por meio de **módulos** trocáveis ("plugáveis"), sem saber se a senha está no `/etc/shadow`, no LDAP ou num cartão. Cada programa tem um arquivo em **`/etc/pam.d/`** (por exemplo, `/etc/pam.d/sshd`), que inclui os arquivos comuns `common-auth`, `common-account`, `common-password` e `common-session`.
+
+| Tipo de regra | Pergunta | Módulos usados no projeto |
+|:--|:--|:--|
+| `auth` | A senha confere? | `pam_unix` (confere no `/etc/shadow`) e `pam_sss` (pergunta ao SSSD, que confere no LDAP) |
+| `account` | A conta pode entrar agora (não expirou, não está bloqueada)? | `pam_unix` e `pam_sss` |
+| `password` | Como trocar a senha? | `pam_unix` e `pam_sss` |
+| `session` | O que fazer ao abrir a sessão? | `pam_mkhomedir` (cria o `/home` no primeiro login) |
+
+Trecho do `/etc/pam.d/common-auth` depois da instalação do `libpam-sss`:
+
+```
+auth  [success=2 default=ignore]  pam_unix.so nullok
+auth  [success=1 default=ignore]  pam_sss.so use_first_pass
+```
+
+Lê-se: tente a senha no `/etc/shadow` (`pam_unix`); se não der certo, tente a mesma senha no SSSD (`pam_sss`). Por isso o `administrador`, local, e `fulano.tal`, do LDAP, entram pelo mesmo `ssh`. O comando `pam-auth-update` edita esses arquivos com segurança.
+
+#### SSSD — *System Security Services Daemon*
+
+O **SSSD** é um serviço (*daemon*) que liga o NSS e o PAM a fontes de identidade **remotas**: LDAP, Active Directory ou Kerberos. Foi criado em 2009 pelo projeto Fedora, da Red Hat, e é o padrão atual no Ubuntu, no Fedora e no RHEL [5, 6]. Sem ele, cada programa abriria a própria conexão com o LDAP a cada consulta.
+
+| Parte | Função |
+|:--|:--|
+| Módulo NSS (`libnss-sss`) | Recebe as perguntas "quem é" e as passa ao SSSD |
+| Módulo PAM (`libpam-sss`) | Recebe as perguntas "a senha confere?" e as passa ao SSSD |
+| Serviço `sssd` | Consulta o LDAP (o **provedor**, *provider*), guarda as respostas em **cache** e as devolve |
+| `/etc/sssd/sssd.conf` | Onde fica o servidor LDAP, a base de busca e as opções (seção 5) |
+
+O **cache** é o que mantém o login funcionando se o `ldap` ficar fora do ar por alguns minutos, e o que evita uma consulta ao LDAP a cada `ls -l`.
 
 **Figura 2:** Caminho de um `ssh fulano.tal@www`.
 
@@ -78,6 +185,14 @@ flowchart LR
     X -->|"1. onde fica ldap.grupo0...?"| DNS["ns1 / ns2"]
     X -->|"2. busca a conta e faz o bind com a senha"| L["ldap<br/>192.168.26.7"]
 ```
+
+**Exemplo, passo a passo:**
+
+1. O `sshd` do `www` recebe o login `fulano.tal` e pergunta ao **NSS** se a conta existe. O NSS olha o `/etc/passwd` (não tem) e pergunta ao **SSSD**.
+2. O SSSD pergunta ao **DNS** o IP de `ldap.grupo0.bsi-26-2.maceio.lab` e busca no **LDAP** a entrada `uid=fulano.tal`. Devolve UID 10001, grupo 10000, home e shell.
+3. O `sshd` pede ao **PAM** que confira a senha. O `pam_unix` falha (a conta não está no `/etc/shadow`), e o `pam_sss` passa a senha ao SSSD.
+4. O SSSD faz um ***bind*** no LDAP com o DN de `fulano.tal` e a senha digitada. Se o LDAP aceitar, a senha está certa.
+5. Na abertura da sessão, o `pam_mkhomedir` cria `/home/fulano.tal`, se ainda não existir, e o usuário recebe o terminal.
 
 > **Segurança.** A porta 389 trafega em texto puro, inclusive a senha do *bind*. No projeto deste semestre isso é aceito porque tudo fica na rede interna do grupo; o SSSD exige uma opção explícita para isso (seção 5). Em produção, usa-se TLS — é um dos bônus do projeto.
 
@@ -357,7 +472,23 @@ Repita `ssh fulano.tal@www` e `ssh fulano.tal@arquivos` com a senha nova: ela va
 
 ## 7. Prática 3 — Samba no `arquivos`
 
-O Samba compartilha pastas do Linux pela rede com o protocolo SMB, o mesmo das pastas compartilhadas do Windows [8, 9]. A prática tem duas etapas, para mostrar a diferença que o login unificado faz:
+### Conceitos do Samba
+
+| Termo | Definição |
+|:--|:--|
+| **SMB** (*Server Message Block*) | Protocolo de compartilhamento de arquivos e impressoras em rede, criado pela IBM nos anos 1980 e desenvolvido pela Microsoft: é o que o Windows usa quando você abre `\\servidor\pasta`. Funciona na porta **445/TCP**. Versões: SMB1 (antiga e insegura, também chamada CIFS), SMB2 (Windows Vista) e SMB3 (Windows 8, com criptografia) |
+| **Samba** | Implementação livre do SMB para Linux e Unix, criada por Andrew Tridgell em 1992. Permite que um servidor Linux compartilhe pastas com Windows, Linux e macOS [8, 9] |
+| **`smbd`** | O programa servidor do Samba, que atende os clientes na porta 445 |
+| **Compartilhamento** (*share*) | Uma pasta do servidor oferecida na rede com um nome. No `smb.conf`, cada compartilhamento é uma seção entre colchetes: `[grupo0]` publica `/srv/arquivos/grupo0` com o nome `grupo0` |
+| **`smb.conf`** | Arquivo de configuração do Samba: a seção `[global]` vale para o servidor todo; as outras seções são os compartilhamentos |
+| **`smbclient`** | Cliente de linha de comando do Samba, parecido com um cliente FTP: lista e abre compartilhamentos |
+| **`smbpasswd`** | Cadastra uma conta no banco de senhas do próprio Samba |
+
+**Por que o Samba tem senha própria?** No SMB, a senha nunca viaja pela rede: o cliente prova que a conhece respondendo a um desafio calculado com um *hash* específico do Windows (o *NT hash*). O `/etc/shadow` e o LDAP do projeto guardam outro tipo de *hash*, que não serve para esse cálculo. Por isso o Samba mantém um banco próprio (`/var/lib/samba/private/passdb.tdb`), preenchido com `smbpasswd -a`.
+
+**Exemplo:** no Windows, abrir `\\arquivos\grupo0` no Explorer; no Linux, `smbclient //arquivos/grupo0 -U fulano.tal`. Os dois falam SMB com o `smbd` do `arquivos`.
+
+A prática tem duas etapas, para mostrar a diferença que o login unificado faz:
 
 | Etapa | Quem acessa | De onde vem a conta |
 |:--|:--|:--|

@@ -23,7 +23,50 @@ O LDAP fica para a [Aula 10](Aula10.md). Ele depende do DNS: os clientes encontr
 
 ## 1. Conceitos
 
-O DNS traduz nomes em endereços (e o contrário) por meio de um banco de dados **distribuído e hierárquico** [1, 2, 6]. Nenhum servidor conhece todos os nomes: cada um responde pela sua parte da árvore, chamada **zona**.
+### 1.1 Do `/etc/hosts` ao DNS
+
+Na Etapa 1, cada VM conhecia as outras pelo arquivo **`/etc/hosts`**: uma tabela local de nomes e IPs, que precisava ser copiada e mantida igual nas 9 VMs. Se um IP muda, é preciso editar 9 arquivos. A internet começou assim: até o início dos anos 1980, um único arquivo `HOSTS.TXT` era baixado por todos os computadores da ARPANET. Quando a rede cresceu, esse arquivo ficou impossível de manter, e em 1983 Paul Mockapetris propôs o **DNS** (*Domain Name System*), padronizado nas RFC 1034 e 1035 [2].
+
+O **DNS** é um serviço que traduz **nomes** em **endereços IP** (e o contrário) usando um banco de dados **distribuído e hierárquico**: nenhum servidor conhece todos os nomes; cada um responde pela sua parte da árvore [1, 2, 6]. No projeto, o `/etc/hosts` fica só com o nome da própria VM, e todos os outros nomes passam a vir do DNS do grupo.
+
+**O que é cada coisa:**
+
+| Termo | Definição | Exemplo no projeto |
+|:--|:--|:--|
+| **Nome de domínio** | Nome de um nó da árvore do DNS, com rótulos separados por ponto, do mais específico para o mais geral | `grupo0.bsi-26-2.maceio.lab` |
+| **FQDN** (*Fully Qualified Domain Name*) | Nome completo de uma máquina, até a raiz; escrito com um ponto final quando é preciso deixar claro que está completo | `ldap.grupo0.bsi-26-2.maceio.lab.` |
+| **Zona** | Parte da árvore pela qual um servidor responde, guardada num **arquivo de zona** | a zona `grupo0.bsi-26-2.maceio.lab`, no arquivo `db.grupo0` |
+| **Registro** (RR, *resource record*) | Uma linha do arquivo de zona: nome, tipo e valor | `www IN A 192.168.26.4` |
+| **TTL** (*time to live*) | Por quantos segundos uma resposta pode ficar guardada em *cache* | `3600` (uma hora) |
+| **Servidor de nomes** | Programa que responde consultas DNS, na porta **53** (UDP para consultas, TCP para respostas grandes e transferências de zona) | `ns1` e `ns2` |
+| **Resolvedor** (*resolver*) | Parte do sistema operacional que faz as perguntas ao servidor de nomes em nome dos programas | No Ubuntu, o `systemd-resolved`, que escuta em `127.0.0.53` e lê os servidores configurados no Netplan |
+| **BIND9** | O servidor de nomes mais usado na internet, mantido pelo ISC (*Internet Systems Consortium*); o nome vem de *Berkeley Internet Name Domain*, criado na Universidade da Califórnia em Berkeley | Pacote `bind9` |
+| **`named`** | O nome do programa (processo) do BIND9: *name daemon* | `systemctl status named` |
+| **`dig`** | Ferramenta de linha de comando que faz consultas DNS e mostra a resposta completa | `dig www.grupo0.bsi-26-2.maceio.lab` |
+
+**Exemplo: o que acontece num `ping www` na VM `cliente`.**
+
+1. O `ping` pede ao sistema o IP de `www`. O sistema olha primeiro o `/etc/hosts` (não tem) e depois pergunta ao resolvedor (`systemd-resolved`).
+2. O resolvedor completa o nome curto com o domínio de busca: `www.grupo0.bsi-26-2.maceio.lab`.
+3. O resolvedor envia a consulta para o primeiro servidor configurado, o `ns1` (`192.168.26.2`, porta 53/UDP).
+4. O `ns1` é o dono da zona: procura o registro `A` de `www` no arquivo `db.grupo0` e responde `192.168.26.4`, marcando a resposta como **autoritativa**.
+5. O resolvedor guarda a resposta pelo tempo do TTL e entrega o IP ao `ping`, que envia os pacotes ICMP para `192.168.26.4`.
+
+Se o nome for de fora do grupo (por exemplo, `ifal.edu.br`), o `ns1` não é o dono: ele repassa a pergunta ao DNS do laboratório (`172.20.20.1`), guarda a resposta em *cache* e a devolve ao `cliente`.
+
+**Anatomia de um registro:**
+
+```
+www        3600     IN       A        192.168.26.4
+|          |        |        |        |
+nome       TTL      classe   tipo     valor
+(relativo  (opcio-  (IN =    (A = nome
+ à zona)    nal)    Internet) → IPv4)
+```
+
+### 1.2 Hierarquia e papéis dos servidores
+
+Cada rótulo do nome é um nível da árvore. Quem responde por um nível pode **delegar** um nível abaixo para outro servidor: a turma (`bsi-26-2.maceio.lab`) delegaria `grupo0` para o `ns1` e o `ns2` do Grupo 0.
 
 ```mermaid
 flowchart TD
@@ -43,7 +86,7 @@ flowchart TD
 | **Primário** | Guarda o arquivo da zona, editado pelo administrador | `ns1` |
 | **Secundário** | Copia a zona do primário (**transferência de zona**) e continua respondendo se ele cair | `ns2` |
 
-**Registros usados no projeto:**
+**Tipos de registro usados no projeto:**
 
 | Registro | Significado | Exemplo (Grupo 0) |
 |:--|:--|:--|
@@ -52,7 +95,11 @@ flowchart TD
 | `A` | Nome → endereço IPv4 | `ldap → 192.168.26.7` |
 | `PTR` | Endereço → nome (zona reversa) | `192.168.26.7 → ldap.grupo0.bsi-26-2.maceio.lab.` |
 
-**Primário e secundário.** O `ns2` não tem arquivo de zona escrito à mão. Ele pergunta ao `ns1` o **serial** do SOA e, se o serial aumentou, baixa a zona inteira. O `ns1` também **avisa** o `ns2` a cada recarga (NOTIFY), e a cópia acontece em segundos [1, 5]:
+### 1.3 Primário, secundário e transferência de zona
+
+Um único servidor de nomes é um **ponto único de falha**: se ele cair, nenhuma VM encontra as outras pelo nome. Por isso toda zona tem pelo menos dois servidores. A **transferência de zona** é a cópia da zona inteira do primário para o secundário, pela porta 53/TCP; o tipo de consulta que faz essa cópia se chama **AXFR**. O **NOTIFY** é a mensagem com que o primário avisa os secundários de que a zona mudou (RFC 1996).
+
+O `ns2` não tem arquivo de zona escrito à mão. Ele pergunta ao `ns1` o **serial** do SOA e, se o serial aumentou, baixa a zona inteira. O `ns1` também **avisa** o `ns2` a cada recarga (NOTIFY), e a cópia acontece em segundos [1, 5]:
 
 ```mermaid
 sequenceDiagram
@@ -67,7 +114,7 @@ sequenceDiagram
     P-->>S: zona completa
 ```
 
-Três regras que mais derrubam zonas:
+**Três regras que mais derrubam zonas:**
 
 1. **Todo nome completo termina com ponto** (`gw.grupo0.bsi-26-2.maceio.lab.`). Sem o ponto, o BIND acrescenta o nome da zona ao final.
 2. **O serial do SOA precisa aumentar** a cada alteração; senão, o `ns2` não copia a zona nova.

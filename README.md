@@ -81,6 +81,10 @@ Os links abaixo apontam para os roteiros detalhados de cada prática realizada e
     *   MariaDB no `bd` aceitando só o `www`; Apache e PHP no `www` com o site demo enviado por SFTP com a conta do LDAP.
     *   *Virtual host* com a área `/admin` autenticada no LDAP pelo grupo `lsor-gX`; SFTP restrito (`chroot`) do `novato`.
     *   Roteiro da apresentação de 02/12.
+12. **[Aula 12 (extra): Segurança dos Serviços — Chaves SSH, TLS no LDAP, HTTPS, Samba Seguro e DNSSEC](Aula12.md)**
+    *   Conceitos de criptografia simétrica e assimétrica, *hash*, assinatura digital, certificado X.509, CA e TLS.
+    *   Login por chave Ed25519 no SSH; CA própria do grupo com OpenSSL; StartTLS no OpenLDAP, no SSSD e no Apache, com TLS exigido pelo servidor.
+    *   Site em HTTPS com redirecionamento e HSTS; Samba só com SMB3 cifrado e sem convidado; zona do grupo assinada com DNSSEC e validada com o `delv`.
 
 ---
 

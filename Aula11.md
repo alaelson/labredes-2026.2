@@ -12,8 +12,8 @@ Todos os testes são feitos **a partir da VM `cliente`**, pelo nome das VMs.
 
 | Tempo | Parte | Conteúdo |
 |:--|:--|:--|
-| 0–10 min | Pré-requisito e conceitos | Conferir DNS e login unificado; o que é uma aplicação em duas camadas (seções 0 e 1) |
-| 10–30 min | Prática 1 | Banco de dados MariaDB no `bd` (seção 2) |
+| 0–20 min | Pré-requisito e conceitos | Conferir DNS e login unificado; HTTP, Apache, PHP, MariaDB e LAMP em duas camadas (seções 0 e 1) |
+| 20–30 min | Prática 1 | Banco de dados MariaDB no `bd` (seção 2) |
 | 30–50 min | Prática 2 | Apache e PHP no `www` e envio do site por SFTP (seções 3 e 4) |
 | 50–70 min | Prática 3 | *Virtual host*, área `/admin` com LDAP e testes (seções 5 e 6) |
 | 70–80 min | Prática 4 | SFTP restrito do `novato` (seção 7) |
@@ -34,9 +34,65 @@ Se algum falhar, termine as Aulas 09 e 10 antes de continuar. Tire um *snapshot*
 
 ---
 
-## 1. Conceitos: aplicação em duas camadas
+## 1. Conceitos
 
-Numa pilha **LAMP** (Linux, Apache, MariaDB/MySQL e PHP), o Apache recebe o pedido HTTP, o PHP monta a página e consulta o banco. No projeto, o servidor web e o banco ficam em **VMs separadas**: cada página atravessa a rede do grupo até o banco [1, 2, 3].
+### 1.1 Web, HTTP e servidor web
+
+| Termo | Definição | Exemplo no projeto |
+|:--|:--|:--|
+| **HTTP** (*HyperText Transfer Protocol*) | Protocolo da web: o cliente envia um **pedido** (método, caminho, cabeçalhos) e o servidor devolve uma **resposta** com um **código de estado** e o conteúdo. Porta **80/TCP** | `GET /consulta.php` → `200 OK` |
+| **Código de estado** | Número de três dígitos que resume o resultado | `200` OK; `301` mudou de endereço; `401` precisa de usuário e senha; `404` não existe; `500` erro no servidor |
+| **Servidor web** | Programa que escuta na porta 80, recebe os pedidos HTTP e devolve arquivos ou o resultado de programas | Apache no `www` |
+| **Apache HTTP Server** | Servidor web livre da Apache Software Foundation, criado em 1995 a partir do servidor NCSA. Funciona com **módulos** (`mod_php`, `mod_ldap`, `mod_ssl`), ligados com `a2enmod` | Pacote `apache2` |
+| **DocumentRoot** | A pasta cujo conteúdo o servidor publica | `/var/www/www.grupo0.bsi-26-2.maceio.lab/public` |
+| ***Virtual host*** | Um site configurado dentro do Apache, com nome e pasta próprios. Um mesmo Apache pode servir vários sites, escolhidos pelo nome pedido (cabeçalho `Host:`) | `www.grupo0.bsi-26-2.maceio.lab` |
+| **Autenticação básica** (*Basic*) | O servidor responde `401` e o cliente reenvia o pedido com o cabeçalho `Authorization: Basic`, contendo usuário e senha codificados (não cifrados) em Base64 | Área `/admin`, conferida no LDAP pelo `mod_authnz_ldap` |
+| **`curl`** e **`lynx`** | Clientes HTTP de linha de comando: o `curl` mostra a resposta crua; o `lynx` é um navegador em modo texto | Testes da seção 6 |
+
+**Exemplo:** o que o `curl -v http://www/` envia e recebe (resumido):
+
+```
+> GET / HTTP/1.1
+> Host: www
+>
+< HTTP/1.1 200 OK
+< Server: Apache/2.4.58 (Ubuntu)
+< Content-Type: text/html; charset=UTF-8
+<
+<!DOCTYPE html> ... Conectado ao MariaDB ...
+```
+
+### 1.2 Página dinâmica: PHP
+
+Um arquivo `.html` é entregue como está. Um arquivo **`.php`** é um **programa**: o Apache entrega o arquivo ao interpretador **PHP** (pelo módulo `libapache2-mod-php`), que o executa e devolve ao navegador só o HTML gerado. É assim que a página mostra dados do banco que mudam a cada cadastro.
+
+| Termo | Definição |
+|:--|:--|
+| **PHP** | Linguagem de programação para páginas web, criada por Rasmus Lerdorf em 1994; roda no servidor, não no navegador |
+| **PDO** (*PHP Data Objects*) | Biblioteca do PHP para falar com bancos de dados; o pacote `php-mysql` traz o *driver* do MariaDB/MySQL [2] |
+| **Instrução preparada** | Consulta SQL com "buracos" (`?`) preenchidos depois pelo PDO; impede a injeção de SQL. É como o site demo faz todas as consultas |
+
+### 1.3 Banco de dados: MariaDB
+
+| Termo | Definição |
+|:--|:--|
+| **Banco de dados relacional** | Guarda os dados em **tabelas** (linhas e colunas) ligadas por chaves, e é consultado com a linguagem **SQL** |
+| **MariaDB** | Sistema de banco de dados relacional livre, criado em 2009 pelos autores originais do MySQL, depois que o MySQL foi comprado pela Oracle. É compatível com o MySQL (mesmos comandos e clientes) [3] |
+| **Servidor e cliente** | O servidor (`mariadbd`) guarda os dados e escuta na porta **3306/TCP**; o cliente (`mariadb`) envia comandos SQL |
+| **`bind-address`** | O IP em que o servidor escuta. O padrão `127.0.0.1` só aceita conexões da própria VM |
+| **Usuário `'nome'@'origem'`** | No MariaDB, um usuário vale **para uma origem**: `'siteapp'@'192.168.26.4'` só entra a partir do `www` |
+| **`GRANT`** | Comando que dá permissões a um usuário: `GRANT SELECT, INSERT, UPDATE, DELETE ON projeto.* TO ...` |
+
+**Exemplo:** as tabelas do site demo e uma consulta.
+
+```sql
+SELECT a.login, g.nome FROM aluno a JOIN grupo g ON a.gid = g.gid;
+-- fulano.tal | Grupo 0
+```
+
+### 1.4 LAMP em duas camadas
+
+Uma pilha **LAMP** é a combinação **L**inux + **A**pache + **M**ariaDB (ou **M**ySQL) + **P**HP. O Apache recebe o pedido HTTP, o PHP monta a página e consulta o banco. No projeto, o servidor web e o banco ficam em **VMs separadas** — duas **camadas** —: cada página atravessa a rede do grupo até o banco. Assim o banco não fica exposto e cada servidor pode ser atualizado ou trocado sem mexer no outro [1, 2, 3].
 
 ```mermaid
 flowchart LR
@@ -95,7 +151,14 @@ mariadb -h bd -u siteapp -p projeto -e 'SELECT COUNT(*) FROM host'   # teste de 
 
 ## 4. Envio do site por SFTP (`www`)
 
-O SFTP é a transferência de arquivos do SSH. Os integrantes não precisam de configuração nova: o login já vem do LDAP [4].
+O **SFTP** (*SSH File Transfer Protocol*) é a transferência de arquivos feita **dentro de uma conexão SSH**, na porta 22: usa o mesmo login e a mesma criptografia do SSH. Não confunda com o FTP, protocolo antigo (porta 21) que envia a senha e os arquivos sem criptografia. No Linux, o cliente é o comando `sftp`; no Windows, programas como FileZilla e WinSCP. Os integrantes não precisam de configuração nova: o login já vem do LDAP [4].
+
+| Comando no `sftp` | Função |
+|:--|:--|
+| `put arquivo` / `put -r pasta` | Envia do computador local para o servidor |
+| `get arquivo` | Baixa do servidor |
+| `ls`, `cd`, `pwd` | Navega no servidor |
+| `lls`, `lcd` | Navega no computador local |
 
 Numa VM com o [site demo](projeto-final/site-demo) (por exemplo, o `cliente`, com `git clone` do repositório da disciplina), entre na pasta `projeto-final/site-demo` e envie para o seu home no `www` a pasta do site e o *virtual host*:
 
@@ -180,7 +243,15 @@ sudo mariadb projeto -e 'SELECT * FROM aluno; SELECT * FROM host;'
 
 ## 7. Prática 4 — SFTP restrito do `novato` (`www`)
 
-O `novato` (grupo `sftpusers`, shell `/usr/sbin/nologin`) só pode **enviar arquivos** para uma pasta própria no `www`, sem terminal e sem ver o resto do sistema [4]. No **final** do `/etc/ssh/sshd_config` do `www`:
+O `novato` (grupo `sftpusers`, shell `/usr/sbin/nologin`) só pode **enviar arquivos** para uma pasta própria no `www`, sem terminal e sem ver o resto do sistema [4]. Duas opções do servidor SSH fazem isso:
+
+| Opção | Definição |
+|:--|:--|
+| `Match Group sftpusers` | Aplica as linhas seguintes só a quem é do grupo `sftpusers` (do LDAP) |
+| `ChrootDirectory` | ***chroot*** (*change root*): o usuário passa a enxergar a pasta indicada como se fosse a raiz `/` do sistema. Para o `novato`, `/srv/sftp/novato` vira `/`, e `/etc` ou `/home` simplesmente não existem |
+| `ForceCommand internal-sftp` | Qualquer conexão do usuário vira uma sessão SFTP; pedir um terminal não funciona |
+
+Por segurança, o OpenSSH exige que a pasta do *chroot* pertença ao `root` e não tenha escrita para mais ninguém; por isso o `novato` grava na subpasta `arquivos`. No **final** do `/etc/ssh/sshd_config` do `www`:
 
 ```
 Match Group sftpusers
