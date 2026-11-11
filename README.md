@@ -69,6 +69,11 @@ Os links abaixo apontam para os roteiros detalhados de cada prática realizada e
     *   Encaminhamento de pacotes com `net.ipv4.ip_forward=1`, de forma persistente.
     *   Regras IPTables de mascaramento (`MASQUERADE`) e de `FORWARD` entre a LAN e a WAN.
     *   Persistência das regras com `iptables-persistent` e testes de `ping`, `nslookup` e `traceroute` a partir do cliente.
+9.  **[Aula 09: DNS com BIND9 e Diretório LDAP](Aula9.md)**
+    *   Conceitos de DNS (hierarquia, servidor autoritativo e recursivo, zonas e registros `SOA`, `NS`, `A`, `CNAME` e `PTR`) e de LDAP (árvore do diretório, DN, classes de objeto, LDIF e login unificado).
+    *   BIND9 na VM1 como primário da zona `aula9.bsi-26-2.maceio.lab` e da zona reversa `0.0.10.in-addr.arpa`, com recursão só para a rede interna e validação com `named-checkconf` e `named-checkzone`.
+    *   OpenLDAP na VM1 com `ou=usuarios`, `ou=grupos`, o grupo POSIX `devs` e os usuários `fulano` e `beltrano`, carregados com `ldapadd`.
+    *   Consultas da VM2 ao LDAP pelo nome resolvido no DNS (`ldapsearch`, `ldapwhoami`) e, como desafio, login com a conta do LDAP pelo SSSD.
 
 ---
 
