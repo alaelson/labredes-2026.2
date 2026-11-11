@@ -1,8 +1,10 @@
-# Aula 09: DNS com BIND9 e Diretório LDAP — os dois pilares do Projeto Final
+# Aula 09: DNS do Grupo com BIND9 — `ns1` primário e `ns2` secundário
 
-Objetivo: entender como funcionam o DNS e o LDAP e montar, nas VMs das Aulas 07 e 08, um **DNS autoritativo** para um domínio próprio e um **diretório OpenLDAP** com usuários e grupos POSIX, consultando o LDAP **pelo nome** resolvido no DNS. É a base das seções 8, 9 e 10 do [Projeto Final](projeto-final/README.md).
+Objetivo: entender como funciona o DNS e montar, nas VMs da Etapa 1, o **DNS do grupo** para o domínio `grupo0.bsi-26-2.maceio.lab`: o `ns1` como servidor **primário**, o `ns2` como **secundário** e todas as VMs resolvendo os nomes umas das outras. Corresponde às seções 7 e 8 do [Projeto Final](projeto-final/README.md).
 
-**Duração:** 1h30 · **Ambiente:** VirtualBox no laboratório · **Base:** Aulas 06, 07 e 08
+**Duração:** 1h30 · **Ambiente:** VirtualBox, as 9 VMs da Etapa 1 · **Base:** Aulas 06 a 08 e Etapa 1
+
+O LDAP fica para a [Aula 10](Aula10.md). Ele depende do DNS: os clientes encontram o servidor LDAP pelo nome `ldap.grupo0.bsi-26-2.maceio.lab`. **Por isso o DNS vem primeiro.**
 
 ---
 
@@ -10,560 +12,391 @@ Objetivo: entender como funcionam o DNS e o LDAP e montar, nas VMs das Aulas 07 
 
 | Tempo | Parte | Conteúdo |
 |:--|:--|:--|
-| 0–5 min | Abertura | Por que o Projeto Final começa pelo DNS e pelo LDAP |
-| 5–20 min | Teoria 1 | DNS: hierarquia, servidor autoritativo e recursivo, zonas e registros |
-| 20–35 min | Teoria 2 | LDAP: árvore do diretório, DN, classes de objeto, LDIF, login unificado e o caso real do laboratório de Arapiraca |
-| 35–60 min | Prática 1 | DNS autoritativo na VM1 e testes na VM2 (seções 2 e 3) |
-| 60–80 min | Prática 2 | OpenLDAP na VM1 e consultas da VM2 pelo nome (seções 4 e 5) |
-| 80–90 min | Fechamento | O que muda no Projeto Final e próximos passos até a apresentação (seção 7) |
-
-Quem terminar antes faz o **desafio da seção 6** (login na VM2 com uma conta do LDAP).
+| 0–20 min | Teoria | DNS: hierarquia, servidor autoritativo e recursivo, zonas, registros e primário/secundário (seção 1) |
+| 20–30 min | Preparação | Mapa das VMs, *snapshot*, hostnames e conferência do gateway (seção 2) |
+| 30–55 min | Prática 1 | `ns1` primário: zona direta e reversa (seção 3) |
+| 55–70 min | Prática 2 | `ns2` secundário e transferência de zona (seção 4) |
+| 70–85 min | Prática 3 | DNS de todas as VMs apontado para o grupo e testes na VM `cliente` (seções 5 e 6) |
+| 85–90 min | Fechamento | O que precisa estar pronto para a Aula 10 (seção 8) |
 
 ---
 
 ## 1. Conceitos
 
-### 1.1 DNS
-
-O DNS traduz nomes em endereços (e o contrário) por meio de um banco de dados **distribuído e hierárquico** [3, 11]. Nenhum servidor conhece todos os nomes: cada um responde pela sua parte da árvore, chamada **zona**.
+O DNS traduz nomes em endereços (e o contrário) por meio de um banco de dados **distribuído e hierárquico** [1, 2, 6]. Nenhum servidor conhece todos os nomes: cada um responde pela sua parte da árvore, chamada **zona**.
 
 ```mermaid
 flowchart TD
     R[". (raiz)"] --> LAB["lab"]
     LAB --> MZ["maceio.lab"]
-    MZ --> T["bsi-26-2.maceio.lab"]
-    T --> A9["labredes.bsi-26-2.maceio.lab<br/>(zona desta aula: o laboratório da turma)"]
-    T --> G0["grupo0.bsi-26-2.maceio.lab<br/>(zona do Projeto Final)"]
+    MZ --> T["bsi-26-2.maceio.lab<br/>(turma)"]
+    T --> G0["grupo0.bsi-26-2.maceio.lab<br/>zona do Grupo 0: ns1 e ns2"]
+    T --> G1["grupo1.bsi-26-2.maceio.lab<br/>zona do Grupo 1"]
+    T --> GX["..."]
 ```
 
-| Papel | O que faz | Nesta aula |
+| Papel | O que faz | No projeto |
 |:--|:--|:--|
-| **Autoritativo** | Responde com certeza pelos nomes da zona que hospeda | BIND9 na VM1, dono de `labredes.bsi-26-2.maceio.lab` |
-| **Recursivo** | Busca a resposta em outros servidores para quem perguntou e guarda em *cache* | O mesmo BIND9, só para a rede interna |
+| **Autoritativo** | Responde com certeza pelos nomes da zona que hospeda | `ns1` e `ns2`, donos de `grupo0.bsi-26-2.maceio.lab` |
+| **Recursivo** | Busca a resposta em outros servidores para quem perguntou e guarda em *cache* | Os mesmos `ns1` e `ns2`, só para a rede do grupo |
 | **Encaminhador** (*forwarder*) | Recebe as consultas que o recursivo não sabe responder | DNS do laboratório, `172.20.20.1` |
-| **Primário / secundário** | O primário guarda o arquivo da zona; o secundário copia a zona (transferência) | Só o primário hoje; no projeto, `ns1` e `ns2` |
+| **Primário** | Guarda o arquivo da zona, editado pelo administrador | `ns1` |
+| **Secundário** | Copia a zona do primário (**transferência de zona**) e continua respondendo se ele cair | `ns2` |
 
-**Registros que vamos usar:**
+**Registros usados no projeto:**
 
-| Registro | Significado | Exemplo |
+| Registro | Significado | Exemplo (Grupo 0) |
 |:--|:--|:--|
-| `SOA` | Início da zona: servidor principal, contato e **serial** | `2026111101` (formato `AAAAMMDDnn`) |
-| `NS` | Servidor de nomes da zona | `ns1.labredes.bsi-26-2.maceio.lab.` |
-| `A` | Nome → endereço IPv4 | `ldap → 10.0.0.1` |
-| `CNAME` | Apelido de outro nome | `www → gw` |
-| `PTR` | Endereço → nome (zona reversa) | `10.0.0.2 → cliente` |
-| `MX` | Servidor de e-mail do domínio | Fica para o Projeto Final (`mail`) |
+| `SOA` | Início da zona: servidor principal, contato e **serial** | serial `2026111101` (formato `AAAAMMDDnn`) |
+| `NS` | Servidor de nomes da zona | `ns1.grupo0.bsi-26-2.maceio.lab.` |
+| `A` | Nome → endereço IPv4 | `ldap → 192.168.26.7` |
+| `PTR` | Endereço → nome (zona reversa) | `192.168.26.7 → ldap.grupo0.bsi-26-2.maceio.lab.` |
+
+**Primário e secundário.** O `ns2` não tem arquivo de zona escrito à mão. Ele pergunta ao `ns1` o **serial** do SOA e, se o serial aumentou, baixa a zona inteira. O `ns1` também **avisa** o `ns2` a cada recarga (NOTIFY), e a cópia acontece em segundos [1, 5]:
+
+```mermaid
+sequenceDiagram
+    participant A as administrador
+    participant P as ns1 (primário)
+    participant S as ns2 (secundário)
+    A->>P: edita db.grupo0, serial 01 → 02, rndc reload
+    P->>S: NOTIFY (also-notify)
+    S->>P: qual é o serial? (SOA)
+    P-->>S: 2026111102
+    S->>P: transferência da zona (AXFR, permitida por allow-transfer)
+    P-->>S: zona completa
+```
 
 Três regras que mais derrubam zonas:
 
-1. **Todo nome completo termina com ponto** (`gw.labredes.bsi-26-2.maceio.lab.`). Sem o ponto, o BIND acrescenta o nome da zona ao final.
-2. **O serial do SOA precisa aumentar** a cada alteração; senão, os secundários não copiam a zona nova.
-3. `NS` e `MX` apontam para nomes com registro `A` próprio, **nunca para um CNAME** [4].
-
-### 1.2 LDAP
-
-O LDAP é um protocolo de acesso a um **diretório**: um banco de dados organizado em árvore, otimizado para muitas leituras e poucas escritas, usado para guardar contas, grupos e senhas de uma organização [5, 7]. Com o esquema da RFC 2307, cada entrada guarda os mesmos campos de `/etc/passwd` e `/etc/group` [8].
-
-```mermaid
-flowchart TD
-    B["dc=labredes,dc=bsi-26-2,dc=maceio,dc=lab<br/>(base, vem do nome DNS)"] --> U["ou=usuarios"]
-    B --> G["ou=grupos"]
-    U --> F["uid=fulano"]
-    U --> BE["uid=beltrano"]
-    G --> D["cn=devs<br/>gidNumber 10000"]
-```
-
-| Termo | Significado | Exemplo |
-|:--|:--|:--|
-| **DN** (*Distinguished Name*) | Endereço completo e único de uma entrada, da folha até a base | `uid=fulano,ou=usuarios,dc=labredes,dc=bsi-26-2,dc=maceio,dc=lab` |
-| **Base** | Raiz da árvore; por convenção, o domínio DNS escrito em `dc=` | `dc=labredes,dc=bsi-26-2,dc=maceio,dc=lab` |
-| **OU** | Pasta que organiza entradas | `ou=usuarios`, `ou=grupos` |
-| **objectClass** | Define quais atributos a entrada pode ou deve ter | `posixAccount` exige `uidNumber`, `gidNumber`, `homeDirectory` |
-| **LDIF** | Formato de texto para criar ou alterar entradas | arquivo `base.ldif` da seção 4 |
-| **Bind** | Autenticação no LDAP com um DN e uma senha | `ldapwhoami -D uid=fulano,...` |
-
-**De onde vem a base.** Por convenção, cada parte do nome DNS vira um componente `dc=` (*domain component*) [13]: o domínio `labredes.bsi-26-2.maceio.lab` gera a base `dc=labredes,dc=bsi-26-2,dc=maceio,dc=lab`. No Projeto Final a regra é a mesma, só troca o primeiro nome: `grupo0.bsi-26-2.maceio.lab` gera `dc=grupo0,dc=bsi-26-2,dc=maceio,dc=lab`. Note que **DN não é um componente**: é o nome completo de uma entrada, formado por componentes como `dc=`, `ou=`, `cn=` e `uid=`.
-
-**Login unificado.** Quando o Linux procura um usuário, ele consulta o NSS (identidade) e o PAM (senha). Com o SSSD, essas consultas vão ao LDAP, e a mesma conta passa a valer em todas as máquinas [9]:
-
-```mermaid
-flowchart LR
-    S["ssh / su / login"] --> N["NSS e PAM"]
-    N --> X["SSSD (com cache)"]
-    X -->|"consulta pelo nome ldap.dominio"| DNS["DNS"]
-    X -->|"bind e busca"| L["OpenLDAP"]
-```
-
-O LDAP depende do DNS: os clientes encontram o servidor pelo nome, e o certificado TLS do Projeto Final é emitido para esse nome. **Por isso o DNS vem primeiro.**
-
-> **Segurança.** Por padrão, a porta 389 trafega em texto puro, inclusive as senhas do *bind*. Nesta aula isso é aceitável porque tudo fica na rede interna do VirtualBox. No Projeto Final o **StartTLS é obrigatório** (seção 9 do enunciado).
-
-### 1.3 Caso real: o diretório do Laboratório de Redes de Arapiraca
-
-O OpenLDAP que atendeu as turmas de 2020 a 2022 do laboratório hospedado na FAPEAL ainda está no ar. A exportação do diretório (`slapcat`) tem **194 entradas**: 172 contas, 8 grupos e 13 OUs. A estrutura, sem os dados dos alunos, é esta:
-
-```mermaid
-flowchart TD
-    B["dc=labredes,dc=arapiraca,dc=ifal,dc=local"] --> P["ou=People"]
-    B --> AD["ou=administration"]
-    P --> Y20["ou=2020"]
-    P --> Y21["ou=2021"]
-    P --> Y22["ou=2022"]
-    Y22 --> C913["ou=Class913"] --> U1["uid=nome.sobrenome<br/>(35 contas)"]
-    Y22 --> C914["ou=Class914 · Class923 · Class924"]
-    P --> GR["cn=Class913-2022, cn=Class914-2022, ...<br/>cn=administrators, cn=monitores<br/>(posixGroup)"]
-```
-
-O que esse diretório real ensina:
-
-| O que se observa | Avaliação | Como fica no Projeto Final |
-|:--|:--|:--|
-| Base derivada do domínio DNS `labredes.arapiraca.ifal.local` | Correto como convenção; mas o sufixo `.local` é reservado ao mDNS (RFC 6762) e pode conflitar com ele [12] | Domínio `grupoX.bsi-26-2.maceio.lab` |
-| Contas organizadas por ano e turma (`ou=2022,ou=Class913`) e login `nome.sobrenome` | Boa organização: facilita desativar uma turma inteira no fim do ano | `ou=usuarios` e login `nome.sobrenome` |
-| Em 2022, `uidNumber` que codifica ano, turma e número do aluno (ex.: `22913025`); em 2021, ano e sequência (`2021001`) | Garante números únicos sem planilha de controle | `uidNumber` a partir de 10001 |
-| Grupos POSIX guardados dentro de `ou=People`, junto com as contas | Funciona, mas mistura pessoas e grupos | OU própria: `ou=grupos` |
-| 167 senhas em `{SSHA}` e 5 em `{SHA}` | `{SHA}` não tem *salt*: senhas iguais geram o mesmo *hash* | Só `{SSHA}`, gerado com `slappasswd` |
-| 6 contas com `gidNumber: 0` | **Grupo primário `root`**: um erro de segurança | Grupo primário `lsor-gX` (10000) |
-| Contas genéricas por turma (`aluno914`) | Ninguém sabe quem usou a conta | Uma conta nominal por integrante |
+1. **Todo nome completo termina com ponto** (`gw.grupo0.bsi-26-2.maceio.lab.`). Sem o ponto, o BIND acrescenta o nome da zona ao final.
+2. **O serial do SOA precisa aumentar** a cada alteração; senão, o `ns2` não copia a zona nova.
+3. `NS` aponta para nomes com registro `A` próprio, **nunca para um CNAME** [3].
 
 ---
 
-## 2. Prática 1 — DNS autoritativo na VM1
+## 2. Preparação das VMs
 
-Use as duas VMs das Aulas 07 e 08: a VM1 (`vm1-gateway`, com NAT funcionando) e a VM2 (`vm2-cliente`, na rede interna `10.0.0.0/24`). A VM1 vai ser o servidor DNS **e** o servidor LDAP.
+### 2.1 Mapa das VMs
 
-**Tabela 1:** Nomes da zona `labredes.bsi-26-2.maceio.lab`
+As VMs da Etapa 1 continuam nos mesmos PCs e com os mesmos IPs. Muda o papel de cada uma, que passa a ter o **nome do serviço** como hostname (seção 5 do enunciado).
 
-| Nome | Tipo | Valor | Observação |
-|:--|:--|:--|:--|
-| `ns1` | A | `10.0.0.1` | Servidor de nomes da zona (VM1) |
-| `gw` | A | `10.0.0.1` | Gateway (VM1) |
-| `ldap` | A | `10.0.0.1` | Servidor LDAP (VM1) |
-| `cliente` | A | `10.0.0.2` | VM2 |
-| `www` | CNAME | `gw` | Apelido, só para testar o CNAME |
+**Tabela 1:** Mapa do Grupo 0 (modelo). Para o Grupo **X**, some `16·X` ao último octeto: no Grupo 1, o `ns1` é `192.168.26.18`.
 
-### 2.1 Antes de tudo: instalar os clientes na VM2
+| VM da Etapa 1 | Serviço | IP (Grupo 0) | FQDN | Aula |
+|:--|:--|:--|:--|:--:|
+| Gateway | `gw` | WAN `172.20.23.x` · LAN `192.168.26.1` | `gw.grupo0.bsi-26-2.maceio.lab` | 09 |
+| VM1 | `ns1` (DNS primário) | `192.168.26.2` | `ns1.grupo0.bsi-26-2.maceio.lab` | 09 |
+| VM2 | `ns2` (DNS secundário) | `192.168.26.3` | `ns2.grupo0.bsi-26-2.maceio.lab` | 09 |
+| VM3 | `www` | `192.168.26.4` | `www.grupo0.bsi-26-2.maceio.lab` | 11 |
+| VM4 | `bd` | `192.168.26.5` | `bd.grupo0.bsi-26-2.maceio.lab` | 11 |
+| VM5 | `arquivos` | `192.168.26.6` | `arquivos.grupo0.bsi-26-2.maceio.lab` | 11 |
+| VM6 | `ldap` | `192.168.26.7` | `ldap.grupo0.bsi-26-2.maceio.lab` | 10 |
+| VM7 | livre (bônus) | `192.168.26.8` | — | — |
+| VM8 | `cliente` (testes) | `192.168.26.9` | `cliente.grupo0.bsi-26-2.maceio.lab` | 09 |
 
-Instale agora, enquanto a VM2 ainda usa o DNS do laboratório:
+Em todos os comandos desta aula, troque `grupo0` pelo seu grupo e os IPs pelos do seu grupo.
+
+### 2.2 *Snapshot*
+
+No VirtualBox, selecione a VM e use **Máquina → Tirar Snapshot** (nome: `antes-aula09`). Se algo quebrar, volte a ele em **Snapshots → Restaurar**. Faça isso pelo menos no `ns1` e no `ns2`.
+
+### 2.3 Hostname com o nome do serviço (todas as VMs)
+
+Exemplo na VM1, que vira o `ns1`:
 
 ```bash
-sudo apt-get update
-sudo apt-get install -y dnsutils ldap-utils
+sudo hostnamectl set-hostname ns1.grupo0.bsi-26-2.maceio.lab
+sudo nano /etc/hosts
 ```
 
-### 2.2 Instalar o BIND9 (VM1)
+Deixe no `/etc/hosts` só a própria máquina. Os nomes das outras VMs passam a vir do DNS:
+
+```
+127.0.0.1   localhost
+127.0.1.1   ns1.grupo0.bsi-26-2.maceio.lab ns1
+```
+
+Repita em todas as VMs com o nome da Tabela 1. A VM7 fica com o nome da Etapa 1.
+
+### 2.4 Conferir o gateway (`gw`)
+
+Os servidores DNS precisam do NAT da Etapa 1 para consultar o encaminhador `172.20.20.1`. No `gw`:
+
+```bash
+sudo sysctl net.ipv4.ip_forward                        # = 1
+sudo iptables -t nat -L POSTROUTING -n -v              # MASQUERADE da rede do grupo pela enp0s3
+```
+
+Na VM `cliente`: `ping -c 2 1.1.1.1` deve responder. Se não responder, corrija o gateway antes de seguir (Aula 08 e Etapa 1).
+
+---
+
+## 3. Prática 1 — `ns1` primário
+
+Roteiro baseado no manual do BIND e na documentação do Ubuntu Server [1, 4].
+
+### 3.1 Instalar o BIND9 (`ns1`, `ns2` e clientes)
+
+No `ns1` e no `ns2`:
 
 ```bash
 sudo apt-get update
 sudo apt-get install -y bind9 bind9-utils dnsutils
-systemctl status named --no-pager
 ```
 
-### 2.3 Opções do servidor (VM1)
-
-Edite `/etc/bind/named.conf.options` e deixe-o assim [1, 2]:
+Na VM `cliente`, só as ferramentas de consulta:
 
 ```bash
-sudo nano /etc/bind/named.conf.options
+sudo apt-get update && sudo apt-get install -y dnsutils
 ```
 
+### 3.2 Opções do servidor (`ns1` e `ns2`, o mesmo arquivo)
+
+`/etc/bind/named.conf.options`:
+
 ```
-acl rede-interna { 10.0.0.0/24; localhost; };
+acl grupo { 192.168.26.0/28; localhost; };
 
 options {
     directory "/var/cache/bind";
-
-    listen-on { 127.0.0.1; 10.0.0.1; };
     listen-on-v6 { none; };
 
-    allow-query     { rede-interna; };   // quem pode perguntar
-    allow-recursion { rede-interna; };   // quem pode pedir nomes de fora da zona
-    allow-transfer  { none; };           // ninguém copia a zona (no projeto: só o ns2)
+    allow-query     { grupo; };                   // só as VMs do grupo
+    allow-recursion { grupo; };                   // nomes de fora só para o grupo
+    allow-transfer  { none; };                    // liberado só nas zonas do ns1
 
-    forwarders { 172.20.20.1; };         // DNS do laboratório
-
-    // Desligado só no laboratório, porque o encaminhador pode não repassar DNSSEC.
-    dnssec-validation no;
+    forwarders { 172.20.20.1; };                  // DNS do laboratório
+    dnssec-validation no;                         // só no laboratório: o DNS da rede não valida DNSSEC
 };
 ```
 
-### 2.4 Declarar as zonas (VM1)
+| Opção | Por quê |
+|:--|:--|
+| `acl grupo` | Dá um nome à rede do grupo (no Grupo 1, `192.168.26.16/28`) |
+| `allow-recursion { grupo; }` | Sem ela, o servidor responderia nomes de fora para qualquer um (*open resolver*) |
+| `allow-transfer { none; }` | Ninguém copia as zonas, exceto quem for liberado em cada zona |
+| `forwarders` | O que não é do grupo vai para o DNS do laboratório |
 
-Acrescente ao final de `/etc/bind/named.conf.local`:
+### 3.3 Declarar as zonas (`ns1`)
+
+`/etc/bind/named.conf.local`. O `ns1` entrega as zonas só ao `ns2` e o avisa a cada mudança:
 
 ```
-zone "labredes.bsi-26-2.maceio.lab" {
+zone "grupo0.bsi-26-2.maceio.lab" {
     type primary;
-    file "/etc/bind/db.labredes";
+    file "/etc/bind/db.grupo0";
+    allow-transfer { 192.168.26.3; };
+    also-notify    { 192.168.26.3; };
 };
 
-zone "0.0.10.in-addr.arpa" {
+zone "26.168.192.in-addr.arpa" {
     type primary;
-    file "/etc/bind/db.10.0.0";
+    file "/etc/bind/db.192.168.26";
+    allow-transfer { 192.168.26.3; };
+    also-notify    { 192.168.26.3; };
 };
 ```
 
-A zona reversa se escreve com os octetos da rede **ao contrário**: a rede `10.0.0.0/24` vira `0.0.10.in-addr.arpa`.
+> **Zona reversa.** O nome é a parte de rede do IP **ao contrário**, seguida de `in-addr.arpa`: a rede `192.168.26.x` vira `26.168.192.in-addr.arpa`. Cada grupo coloca nela **só os endereços do seu grupo**.
 
-### 2.5 Arquivo da zona direta (VM1)
+### 3.4 Arquivo da zona direta (`ns1`)
 
-```bash
-sudo nano /etc/bind/db.labredes
-```
+`/etc/bind/db.grupo0`:
 
 ```
 $TTL 3600
-@       IN  SOA ns1.labredes.bsi-26-2.maceio.lab. administrador.labredes.bsi-26-2.maceio.lab. (
+@       IN  SOA ns1.grupo0.bsi-26-2.maceio.lab. administrador.grupo0.bsi-26-2.maceio.lab. (
                 2026111101  ; serial (AAAAMMDDnn) - aumente a cada alteração
-                3600        ; refresh
-                900         ; retry
-                604800      ; expire
+                3600        ; refresh: de quanto em quanto tempo o ns2 confere o serial
+                900         ; retry: nova tentativa se o ns1 não responder
+                604800      ; expire: o ns2 para de responder se ficar 7 dias sem o ns1
                 300 )       ; TTL das respostas negativas
 
-        IN  NS      ns1.labredes.bsi-26-2.maceio.lab.
+        IN  NS      ns1.grupo0.bsi-26-2.maceio.lab.
+        IN  NS      ns2.grupo0.bsi-26-2.maceio.lab.
 
-ns1     IN  A       10.0.0.1
-gw      IN  A       10.0.0.1
-ldap    IN  A       10.0.0.1
-cliente IN  A       10.0.0.2
-www     IN  CNAME   gw
+gw       IN  A   192.168.26.1
+ns1      IN  A   192.168.26.2
+ns2      IN  A   192.168.26.3
+www      IN  A   192.168.26.4
+bd       IN  A   192.168.26.5
+arquivos IN  A   192.168.26.6
+ldap     IN  A   192.168.26.7
+cliente  IN  A   192.168.26.9
 ```
 
-O segundo campo do SOA é o e-mail do responsável com o `@` trocado por ponto: `administrador.labredes...` significa `administrador@labredes...`.
+O e-mail do responsável é escrito com ponto no lugar do `@`: `administrador.grupo0...` significa `administrador@grupo0...`.
 
-### 2.6 Arquivo da zona reversa (VM1)
+### 3.5 Arquivo da zona reversa (`ns1`)
 
-```bash
-sudo nano /etc/bind/db.10.0.0
-```
+`/etc/bind/db.192.168.26`. No Grupo 1, os números vão de `17` a `25`:
 
 ```
 $TTL 3600
-@       IN  SOA ns1.labredes.bsi-26-2.maceio.lab. administrador.labredes.bsi-26-2.maceio.lab. (
+@       IN  SOA ns1.grupo0.bsi-26-2.maceio.lab. administrador.grupo0.bsi-26-2.maceio.lab. (
                 2026111101 3600 900 604800 300 )
 
-        IN  NS      ns1.labredes.bsi-26-2.maceio.lab.
+        IN  NS      ns1.grupo0.bsi-26-2.maceio.lab.
+        IN  NS      ns2.grupo0.bsi-26-2.maceio.lab.
 
-1       IN  PTR     gw.labredes.bsi-26-2.maceio.lab.
-2       IN  PTR     cliente.labredes.bsi-26-2.maceio.lab.
+1       IN  PTR     gw.grupo0.bsi-26-2.maceio.lab.
+2       IN  PTR     ns1.grupo0.bsi-26-2.maceio.lab.
+3       IN  PTR     ns2.grupo0.bsi-26-2.maceio.lab.
+4       IN  PTR     www.grupo0.bsi-26-2.maceio.lab.
+5       IN  PTR     bd.grupo0.bsi-26-2.maceio.lab.
+6       IN  PTR     arquivos.grupo0.bsi-26-2.maceio.lab.
+7       IN  PTR     ldap.grupo0.bsi-26-2.maceio.lab.
+9       IN  PTR     cliente.grupo0.bsi-26-2.maceio.lab.
 ```
 
-### 2.7 Validar e carregar (VM1)
-
-**Sempre valide antes de recarregar.** Se algum comando acusar erro, corrija o arquivo indicado na linha informada:
+### 3.6 Validar e carregar (`ns1`)
 
 ```bash
-sudo named-checkconf
-sudo named-checkzone labredes.bsi-26-2.maceio.lab /etc/bind/db.labredes
-sudo named-checkzone 0.0.10.in-addr.arpa /etc/bind/db.10.0.0
+sudo named-checkconf                                                    # sem saída = sem erro
+sudo named-checkzone grupo0.bsi-26-2.maceio.lab /etc/bind/db.grupo0     # "OK"
+sudo named-checkzone 26.168.192.in-addr.arpa /etc/bind/db.192.168.26    # "OK"
 sudo systemctl restart named
-sudo journalctl -u named --no-pager -n 20     # deve mostrar "zone ... loaded serial 2026111101"
-```
-
-Teste no próprio servidor:
-
-```bash
-dig @127.0.0.1 ldap.labredes.bsi-26-2.maceio.lab +short    # 10.0.0.1
-dig @127.0.0.1 -x 10.0.0.2 +short                       # cliente.labredes.bsi-26-2.maceio.lab.
+sudo systemctl status named --no-pager
+dig @127.0.0.1 www.grupo0.bsi-26-2.maceio.lab +short                    # 192.168.26.4
 ```
 
 ---
 
-## 3. Testes do DNS a partir da VM2
+## 4. Prática 2 — `ns2` secundário
 
-### 3.1 Apontar o DNS da VM2 para a VM1
+O `ns2` já tem o BIND9 e o mesmo `named.conf.options` (seções 3.1 e 3.2). Falta só declarar as zonas como **secundárias**. Ele baixa as zonas do `ns1` e as grava em `/var/cache/bind/`, a pasta em que o BIND pode escrever.
 
-No arquivo YAML de `/etc/netplan/` da VM2 (o mesmo da Aula 08), troque o bloco `nameservers`:
+`/etc/bind/named.conf.local` do `ns2`:
+
+```
+zone "grupo0.bsi-26-2.maceio.lab" {
+    type secondary;
+    primaries { 192.168.26.2; };
+    file "/var/cache/bind/db.grupo0";
+};
+
+zone "26.168.192.in-addr.arpa" {
+    type secondary;
+    primaries { 192.168.26.2; };
+    file "/var/cache/bind/db.192.168.26";
+};
+```
+
+```bash
+sudo named-checkconf
+sudo systemctl restart named
+sudo journalctl -u named --no-pager -n 20 | grep -i transfer   # "Transfer completed" para as duas zonas
+ls -l /var/cache/bind/                                         # db.grupo0 e db.192.168.26 criados pelo BIND
+dig @127.0.0.1 ldap.grupo0.bsi-26-2.maceio.lab +short          # 192.168.26.7, respondido pelo ns2
+```
+
+> Os arquivos copiados ficam em formato binário (*raw*). Para ler o conteúdo: `named-compilezone -f raw -F text -o - grupo0.bsi-26-2.maceio.lab /var/cache/bind/db.grupo0`.
+
+---
+
+## 5. Prática 3 — DNS de todas as VMs apontado para o grupo
+
+Em **todas as VMs** (inclusive `ns1`, `ns2` e o `gw`, na placa `enp0s8` da LAN), no arquivo `/etc/netplan/00-installer-config.yaml` da Etapa 1, troque o bloco `nameservers`:
 
 ```yaml
       nameservers:
-        search: [labredes.bsi-26-2.maceio.lab]
-        addresses: [10.0.0.1]
+        search: [grupo0.bsi-26-2.maceio.lab]
+        addresses: [192.168.26.2, 192.168.26.3]
 ```
 
 ```bash
 sudo netplan apply
-resolvectl status enp0s3        # deve mostrar 10.0.0.1 e o domínio de busca
+resolvectl status | grep -A2 "DNS Servers"        # 192.168.26.2 e 192.168.26.3
 ```
 
-### 3.2 Consultas
-
-```bash
-dig gw.labredes.bsi-26-2.maceio.lab            # veja as seções QUESTION e ANSWER e a flag "aa"
-dig +short ldap                             # nome curto: o domínio de busca completa o nome
-dig +short www.labredes.bsi-26-2.maceio.lab    # CNAME para gw e depois o A
-dig -x 10.0.0.2 +short                      # zona reversa
-dig labredes.bsi-26-2.maceio.lab SOA +short    # confira o serial
-dig google.com +short                       # recursão: a VM1 pergunta ao encaminhador
-ping -c 2 gw
-```
-
-| O que observar | Por quê |
-|:--|:--|
-| Flag **`aa`** na resposta de `gw.labredes...` | A VM1 é **autoritativa** pela zona |
-| `google.com` responde **sem** a flag `aa` | A resposta veio da recursão, não da zona local |
-| `ping gw` funciona com o nome curto | O domínio de busca do Netplan completou o nome |
-
-**Sua vez:** acrescente o registro `arquivos IN A 10.0.0.2`, **aumente o serial** para `2026111102`, valide, rode `sudo rndc reload` na VM1 e teste com `dig +short arquivos` na VM2.
+O `search` permite usar o **nome curto**: `ping ldap` vira `ping ldap.grupo0.bsi-26-2.maceio.lab`.
 
 ---
 
-## 4. Prática 2 — Diretório OpenLDAP na VM1
+## 6. Testes do DNS (na VM `cliente`)
 
-### 4.1 Instalar e configurar o slapd (VM1)
+Correspondem aos testes 2 a 5 da seção 13 do enunciado.
 
 ```bash
-sudo apt-get install -y slapd ldap-utils
-sudo dpkg-reconfigure slapd
+dig www.grupo0.bsi-26-2.maceio.lab                        # flag aa e o IP .4
+dig +short ldap                                           # o domínio de busca completa o nome
+dig -x 192.168.26.7 +short                                # ldap.grupo0.bsi-26-2.maceio.lab.
+dig @ns1 grupo0.bsi-26-2.maceio.lab SOA +short
+dig @ns2 grupo0.bsi-26-2.maceio.lab SOA +short            # mesmo serial do ns1
+dig +short ifal.edu.br                                    # nome de fora, pelo encaminhador
 ```
 
-Responda às perguntas do assistente [6]:
+Na resposta do primeiro `dig`, observe:
 
-| Pergunta | Resposta |
+| Campo | O que mostra |
 |:--|:--|
-| *Omit OpenLDAP server configuration?* | **No** |
-| *DNS domain name* | `labredes.bsi-26-2.maceio.lab` |
-| *Organization name* | `LabRedes BSI 2026.2` |
-| *Administrator password* | a senha de laboratório (duas vezes) |
-| *Remove the database when slapd is purged?* | **No** |
-| *Move old database?* | **Yes** |
+| `flags: qr aa rd ra` | `aa` = resposta **autoritativa**: veio do dono da zona |
+| `ANSWER SECTION` | O registro `A` pedido |
+| `SERVER: 192.168.26.2#53` | Qual servidor respondeu |
 
-O assistente transforma o domínio na base `dc=labredes,dc=bsi-26-2,dc=maceio,dc=lab` e cria o administrador `cn=admin,dc=labredes,dc=bsi-26-2,dc=maceio,dc=lab`. Confira:
+**Teste do secundário:**
 
-```bash
-sudo slapcat | head -20
-```
+1. No `ns1`, acrescente ao `db.grupo0` a linha `teste    IN  A   192.168.26.14`, aumente o serial para `2026111102`, valide com `named-checkzone` e rode `sudo rndc reload`.
+2. No `ns2`, confira no log a notificação e a nova transferência: `sudo journalctl -u named -n 10`.
+3. No `cliente`: `dig @ns2 teste.grupo0.bsi-26-2.maceio.lab +short` → `192.168.26.14`.
+4. No `ns1`, pare o BIND (`sudo systemctl stop named`) e repita `dig www.grupo0.bsi-26-2.maceio.lab` no `cliente`: o `ns2` responde sozinho. Depois, `sudo systemctl start named` no `ns1` e remova o registro `teste` (aumentando o serial de novo).
 
-### 4.2 Gerar as senhas dos usuários (VM1)
+**Exercícios de conferência** (registre no tutorial):
 
-As senhas vão para o LDAP como *hash*, **nunca em texto puro**. Gere um *hash* para cada usuário e copie a saída `{SSHA}...`:
+1. De cada VM, `ping -c 2` para `gw`, `ns1`, `ns2` e `ldap` pelo nome curto.
+2. De cada VM, `dig +short` para os nomes da Tabela 1.
+3. De cada VM, `dig -x` para os IPs de `gw`, `ns1`, `ns2` e `cliente`.
+4. Explique no tutorial por que o `dig` para o `ns2` mostra o mesmo serial do `ns1`, e o que acontece se você editar a zona e esquecer de aumentar o serial.
 
-```bash
-slappasswd     # digite a senha de fulano
-slappasswd     # digite a senha de beltrano
-```
-
-### 4.3 Criar a estrutura, o grupo e os usuários (VM1)
-
-Crie o arquivo `base.ldif`, colando os *hashes* nos campos `userPassword`. Entre uma entrada e outra deve haver **uma linha em branco**:
-
-```bash
-nano ~/base.ldif
-```
-
-```ldif
-dn: ou=usuarios,dc=labredes,dc=bsi-26-2,dc=maceio,dc=lab
-objectClass: organizationalUnit
-ou: usuarios
-
-dn: ou=grupos,dc=labredes,dc=bsi-26-2,dc=maceio,dc=lab
-objectClass: organizationalUnit
-ou: grupos
-
-dn: cn=devs,ou=grupos,dc=labredes,dc=bsi-26-2,dc=maceio,dc=lab
-objectClass: posixGroup
-cn: devs
-gidNumber: 10000
-memberUid: fulano
-memberUid: beltrano
-
-dn: uid=fulano,ou=usuarios,dc=labredes,dc=bsi-26-2,dc=maceio,dc=lab
-objectClass: inetOrgPerson
-objectClass: posixAccount
-objectClass: shadowAccount
-uid: fulano
-cn: Fulano de Tal
-sn: Tal
-mail: fulano@labredes.bsi-26-2.maceio.lab
-uidNumber: 10001
-gidNumber: 10000
-homeDirectory: /home/fulano
-loginShell: /bin/bash
-userPassword: {SSHA}cole-aqui-o-hash-de-fulano
-
-dn: uid=beltrano,ou=usuarios,dc=labredes,dc=bsi-26-2,dc=maceio,dc=lab
-objectClass: inetOrgPerson
-objectClass: posixAccount
-objectClass: shadowAccount
-uid: beltrano
-cn: Beltrano da Silva
-sn: Silva
-mail: beltrano@labredes.bsi-26-2.maceio.lab
-uidNumber: 10002
-gidNumber: 10000
-homeDirectory: /home/beltrano
-loginShell: /bin/bash
-userPassword: {SSHA}cole-aqui-o-hash-de-beltrano
-```
-
-Os `uidNumber` começam em **10001** para não colidir com as contas locais, que começam em 1000.
-
-Carregue o arquivo autenticando como administrador do diretório:
-
-```bash
-ldapadd -x -D cn=admin,dc=labredes,dc=bsi-26-2,dc=maceio,dc=lab -W -f ~/base.ldif
-```
-
-Cada entrada criada aparece como `adding new entry "..."`. Se um erro interromper o carregamento, corrija o LDIF e rode de novo **só com as entradas que faltaram** (as já criadas dão erro `Already exists`).
-
----
-
-## 5. Testes do LDAP a partir da VM2 — pelo nome do DNS
-
-Agora a VM2 encontra o LDAP pelo nome `ldap.labredes.bsi-26-2.maceio.lab`, resolvido pelo DNS da seção 2. Para encurtar os comandos, guarde a base numa variável:
-
-```bash
-BASE="dc=labredes,dc=bsi-26-2,dc=maceio,dc=lab"
-URI="ldap://ldap.labredes.bsi-26-2.maceio.lab"
-```
-
-```bash
-# 1. Toda a árvore (consulta anônima)
-ldapsearch -x -LLL -H $URI -b $BASE dn
-
-# 2. Só as contas POSIX, com os campos usados pelo Linux
-ldapsearch -x -LLL -H $URI -b $BASE "(objectClass=posixAccount)" uid uidNumber gidNumber homeDirectory
-
-# 3. Filtro composto: membros do grupo devs
-ldapsearch -x -LLL -H $URI -b ou=grupos,$BASE "(&(objectClass=posixGroup)(cn=devs))" memberUid
-
-# 4. Bind com a conta de fulano: confere a senha
-ldapwhoami -x -H $URI -D uid=fulano,ou=usuarios,$BASE -W
-```
-
-| Teste | Resultado esperado |
-|:--|:--|
-| 1 | Os DNs da base, das duas OUs, do grupo e dos dois usuários |
-| 2 | `fulano` com `uidNumber: 10001` e `beltrano` com `10002` |
-| 3 | `memberUid: fulano` e `memberUid: beltrano` |
-| 4 | `dn:uid=fulano,ou=usuarios,...`; com senha errada, `Invalid credentials (49)` |
-
-Repare que a consulta anônima **não mostra** o atributo `userPassword`: o slapd protege esse campo por padrão.
-
-**Sua vez:** crie o usuário `cicrano` (`uidNumber 10003`) num arquivo `cicrano.ldif`, inclua-o no grupo `devs` e mostre as duas mudanças com `ldapsearch`. Para acrescentar um membro a um grupo que já existe, use `ldapmodify` com o LDIF abaixo, salvo como `~/devs-cicrano.ldif`:
-
-```ldif
-dn: cn=devs,ou=grupos,dc=labredes,dc=bsi-26-2,dc=maceio,dc=lab
-changetype: modify
-add: memberUid
-memberUid: cicrano
-```
-
-```bash
-ldapmodify -x -D cn=admin,dc=labredes,dc=bsi-26-2,dc=maceio,dc=lab -W -f ~/devs-cicrano.ldif
-```
-
-### 5.1 Problemas comuns
+### 6.1 Problemas comuns
 
 | Sintoma | Causa provável | O que fazer |
 |:--|:--|:--|
-| `dig` responde `status: REFUSED` | A rede da VM2 não está na `acl rede-interna` | Confira a ACL e o IP da VM2 |
-| `dig` responde `SERVFAIL` para o domínio | Zona não carregou | `sudo journalctl -u named -n 30` e `named-checkzone` |
-| Nome resolve para `gw.labredes...labredes...` | Faltou o ponto final no arquivo da zona | Acrescente o ponto, aumente o serial e recarregue |
-| Alteração na zona não aparece | Serial não foi aumentado ou faltou `rndc reload` | Aumente o serial e rode `sudo rndc reload` |
-| `ldapsearch`: `Can't contact LDAP server (-1)` | Nome não resolve ou slapd parado | `dig +short ldap` e `systemctl status slapd` |
-| `ldapadd`: `Invalid credentials (49)` | DN do administrador ou senha errados | O DN é `cn=admin,` seguido da base |
-| `ldapadd`: `Invalid syntax (21)` ou `Object class violation (65)` | Atributo obrigatório ausente ou espaço sobrando no LDIF | Confira os campos da entrada indicada e os espaços no fim das linhas |
+| `named-checkzone` reclama de `ns1.grupo0...grupo0...` | Nome completo sem o ponto final | Acrescente o `.` no final dos nomes completos |
+| `status: REFUSED` | IP fora da `acl grupo` | Confira a sub-rede do grupo em `named.conf.options` |
+| `status: SERVFAIL` para nomes de fora | `gw` sem NAT, ou validação DNSSEC ligada | Seção 2.4 e `dnssec-validation no` |
+| `ns2` sem os arquivos em `/var/cache/bind` | `allow-transfer` do `ns1` sem o IP do `ns2`, ou arquivo do secundário fora de `/var/cache/bind` | Corrija e rode `sudo rndc retransfer grupo0.bsi-26-2.maceio.lab` no `ns2` |
+| Mudança no `ns1` não chega ao `ns2` | Serial não aumentou | Aumente o serial e `sudo rndc reload` |
+| `ping ldap` não resolve | Falta o `search` no Netplan | Seção 5 |
+| `named` não sobe | Erro de sintaxe (falta `;` ou `}`) | `sudo named-checkconf` e `sudo journalctl -u named -n 30` |
 
 ---
 
-## 6. Desafio (se sobrar tempo): login na VM2 com a conta do LDAP
+## 7. Registro no repositório do grupo
 
-Este é o mecanismo da seção 10 do Projeto Final, em versão simplificada e **sem TLS**:
+Na seção **DNS** do tutorial do grupo, no [Modelo de 7 Passos](README.md):
 
-```bash
-# VM2
-sudo apt-get install -y sssd-ldap libnss-sss libpam-sss
-sudo nano /etc/sssd/sssd.conf
-```
-
-```ini
-[sssd]
-services = nss, pam
-domains = labredes
-
-[domain/labredes]
-id_provider = ldap
-auth_provider = ldap
-ldap_uri = ldap://ldap.labredes.bsi-26-2.maceio.lab
-ldap_search_base = dc=labredes,dc=bsi-26-2,dc=maceio,dc=lab
-cache_credentials = true
-# SOMENTE NESTA AULA: aceita senha sem criptografia. No Projeto Final use StartTLS.
-ldap_auth_disable_tls_never_use_in_production = true
-```
-
-```bash
-sudo chmod 600 /etc/sssd/sssd.conf
-sudo systemctl restart sssd
-sudo pam-auth-update --enable mkhomedir     # cria o /home no primeiro login
-
-getent passwd fulano       # 10001, vindo do LDAP
-id fulano                  # grupo devs (10000)
-grep fulano /etc/passwd    # não aparece: a conta não é local
-su - fulano                # entra com a senha do LDAP; o home é criado agora
-```
-
-Sem a opção `ldap_auth_disable_tls_never_use_in_production`, o SSSD recusa a senha, justamente para não enviá-la em texto puro [10].
+1. O `named.conf.options` e o `named.conf.local` do `ns1` e do `ns2`.
+2. Os dois arquivos de zona do `ns1`.
+3. O log da transferência no `ns2` (`journalctl -u named | grep -i transfer`).
+4. A saída dos testes da seção 6, inclusive o teste do secundário.
+5. O Netplan de uma VM com o bloco `nameservers`.
 
 ---
 
-## 7. Do laboratório para o Projeto Final
+## 8. Para a Aula 10 (18/11)
 
-| Nesta aula (VirtualBox) | No Projeto Final (servidor do laboratório) |
-|:--|:--|
-| DNS e LDAP na mesma VM | VMs separadas: `ns1`, `ns2` e `ldap` |
-| Só servidor primário | Primário (`ns1`) e secundário (`ns2`), com `allow-transfer` e `also-notify` |
-| Rede interna `10.0.0.0/24`, placas `enp0s3`/`enp0s8` | Rede do grupo `10.10.101.(16·X)/28`, placas `ens18`/`ens19` |
-| Domínio `labredes.bsi-26-2.maceio.lab` | Domínio `grupoX.bsi-26-2.maceio.lab` |
-| Recursão para a rede interna | Recursão só para o grupo; consultas também da VPN da turma |
-| LDAP em texto puro (porta 389) | **StartTLS obrigatório**, com CA do grupo |
-| Login no LDAP só na VM2 (desafio) | Login unificado nas **8 VMs**, com `sudo` pelo grupo `lsor-gX` |
-| Testes a partir da VM2 | Testes a partir do computador do aluno, conectado à VPN |
+Chegue com:
 
-**Apresentação do Projeto Final: 02/12.** Use os arquivos desta aula como ponto de partida para as seções 8 a 10 do enunciado: a estrutura das zonas, do LDIF e dos testes é a mesma, mudando os nomes, os endereços e o domínio.
+- [ ] Hostnames das 9 VMs com o nome do serviço.
+- [ ] `ns1` e `ns2` respondendo com o mesmo serial.
+- [ ] Todas as VMs resolvendo `ldap.grupo0.bsi-26-2.maceio.lab` → `192.168.26.7`.
 
----
-
-## 8. Registro no seu repositório
-
-Documente a aula no seu repositório pessoal, seguindo o **Modelo de 7 Passos** do [README](README.md). Inclua como evidência, com o comando e o resultado de cada um:
-
-1. `named-checkconf` e os dois `named-checkzone` sem erros.
-2. Os arquivos `db.labredes` e `db.10.0.0` (com `cat`).
-3. Na VM2: `resolvectl status`, `dig gw.labredes...` mostrando a flag `aa`, `dig -x 10.0.0.2` e `dig google.com`.
-4. O registro `arquivos` acrescentado, com o serial novo.
-5. `sudo slapcat` resumido (só os DNs: `sudo slapcat | grep ^dn`).
-6. Na VM2: os quatro testes da seção 5 e as consultas mostrando o usuário `cicrano` no grupo `devs`.
-7. (Desafio) `getent passwd fulano`, `id fulano` e o login com `su - fulano`.
-
-> Não publique senhas nem os *hashes* `{SSHA}` no GitHub. Mostre os comandos e os resultados; no LDIF do relatório, troque o *hash* por `{SSHA}...`.
+Na Aula 10 o grupo instala o OpenLDAP na VM `ldap` e liga o login unificado nas 9 VMs. Sem o DNS funcionando, o SSSD não encontra o servidor.
 
 ---
 
 ## Referências
 
-[1] INTERNET SYSTEMS CONSORTIUM. **BIND 9 Administrator Reference Manual** — opções `allow-query`, `allow-recursion`, `allow-transfer` e `forwarders`. Disponível em: <https://bind9.readthedocs.io/>.
+[1] INTERNET SYSTEMS CONSORTIUM. **BIND 9 Administrator Reference Manual** — zonas `primary` e `secondary`, `allow-transfer`, `also-notify`, `primaries` e `forwarders`. Disponível em: <https://bind9.readthedocs.io/>.
 
-[2] CANONICAL. **Domain Name Service (DNS)**. Ubuntu Server documentation. Disponível em: <https://ubuntu.com/server/docs/how-to/networking/install-dns/>.
+[2] MOCKAPETRIS, P. **RFC 1034 — Domain Names: Concepts and Facilities** e **RFC 1035 — Domain Names: Implementation and Specification**. IETF, 1987. Disponíveis em: <https://www.rfc-editor.org/rfc/rfc1034> e <https://www.rfc-editor.org/rfc/rfc1035>.
 
-[3] MOCKAPETRIS, P. **RFC 1034 — Domain Names: Concepts and Facilities** e **RFC 1035 — Domain Names: Implementation and Specification**. IETF, 1987. Disponíveis em: <https://www.rfc-editor.org/rfc/rfc1034> e <https://www.rfc-editor.org/rfc/rfc1035>.
+[3] ELZ, R.; BUSH, R. **RFC 2181 — Clarifications to the DNS Specification**, seção 10.3. IETF, 1997. Disponível em: <https://www.rfc-editor.org/rfc/rfc2181>.
 
-[4] ELZ, R.; BUSH, R. **RFC 2181 — Clarifications to the DNS Specification** (seção 10.3). IETF, 1997. Disponível em: <https://www.rfc-editor.org/rfc/rfc2181>.
+[4] CANONICAL. **Domain Name Service (DNS)** — servidor primário e secundário. Ubuntu Server documentation. Disponível em: <https://ubuntu.com/server/docs/how-to/networking/install-dns/>.
 
-[5] SERMERSHEIM, J. (Ed.). **RFC 4511 — Lightweight Directory Access Protocol (LDAP): The Protocol**. IETF, 2006. Disponível em: <https://www.rfc-editor.org/rfc/rfc4511>.
+[5] VIXIE, P. **RFC 1996 — A Mechanism for Prompt Notification of Zone Changes (DNS NOTIFY)**. IETF, 1996. Disponível em: <https://www.rfc-editor.org/rfc/rfc1996>.
 
-[6] CANONICAL. **Install and configure LDAP**. Ubuntu Server documentation. Disponível em: <https://documentation.ubuntu.com/server/how-to/openldap/install-openldap>.
-
-[7] OPENLDAP FOUNDATION. **OpenLDAP Software Administrator's Guide**. Disponível em: <https://www.openldap.org/doc/admin26/>.
-
-[8] HOWARD, L. **RFC 2307 — An Approach for Using LDAP as a Network Information Service**. IETF, 1998. Disponível em: <https://www.rfc-editor.org/rfc/rfc2307>.
-
-[9] CANONICAL. **How to set up SSSD with LDAP**. Ubuntu Server documentation. Disponível em: <https://documentation.ubuntu.com/server/how-to/sssd/with-ldap>.
-
-[10] SSSD PROJECT. **sssd-ldap(5)** — opções `ldap_id_use_start_tls` e `ldap_auth_disable_tls_never_use_in_production`. Disponível em: <https://manpages.ubuntu.com/manpages/noble/man5/sssd-ldap.5.html>.
-
-[11] KUROSE, James F.; ROSS, Keith W. **Redes de Computadores e a Internet**. 8. ed. Pearson, 2022. (Capítulo 2: DNS.)
-
-[12] CHESHIRE, S.; KROCHMAL, M. **RFC 6762 — Multicast DNS** (seção 3, nomes `.local`). IETF, 2013. Disponível em: <https://www.rfc-editor.org/rfc/rfc6762>.
-
-[13] KUNZE, S. et al. **RFC 2247 — Using Domains in LDAP/X.500 Distinguished Names**. IETF, 1998. Disponível em: <https://www.rfc-editor.org/rfc/rfc2247>.
+[6] KUROSE, James F.; ROSS, Keith W. **Redes de Computadores e a Internet**. 8. ed. Pearson, 2022. Cap. 2, seção 2.4 (DNS).

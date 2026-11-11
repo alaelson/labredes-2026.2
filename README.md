@@ -69,17 +69,15 @@ Os links abaixo apontam para os roteiros detalhados de cada prática realizada e
     *   Encaminhamento de pacotes com `net.ipv4.ip_forward=1`, de forma persistente.
     *   Regras IPTables de mascaramento (`MASQUERADE`) e de `FORWARD` entre a LAN e a WAN.
     *   Persistência das regras com `iptables-persistent` e testes de `ping`, `nslookup` e `traceroute` a partir do cliente.
-9.  **[Aula 09: DNS com BIND9 e Diretório LDAP](Aula9.md)**
-    *   Conceitos de DNS (hierarquia, servidor autoritativo e recursivo, zonas e registros `SOA`, `NS`, `A`, `CNAME` e `PTR`) e de LDAP (árvore do diretório, DN, classes de objeto, LDIF e login unificado).
-    *   BIND9 na VM1 como primário da zona `labredes.bsi-26-2.maceio.lab` e da zona reversa `0.0.10.in-addr.arpa`, com recursão só para a rede interna e validação com `named-checkconf` e `named-checkzone`.
-    *   OpenLDAP na VM1 com `ou=usuarios`, `ou=grupos`, o grupo POSIX `devs` e os usuários `fulano` e `beltrano`, carregados com `ldapadd`.
-    *   Consultas da VM2 ao LDAP pelo nome resolvido no DNS (`ldapsearch`, `ldapwhoami`) e, como desafio, login com a conta do LDAP pelo SSSD.
-10. **[Aula 10: Projeto Final — Gateway com Firewall, DNS do Grupo e Login Unificado](Aula10.md)** (18/11)
-    *   As 9 VMs da Etapa 1 viram `gw`, `ns1`, `ns2`, `www`, `bd`, `arquivos`, `ldap`, `mail` e `cliente`, com o mesmo último octeto do servidor do laboratório; remoção das contas locais dos integrantes.
-    *   Firewall no `gw` com política `DROP` e encaminhamento de portas (DNAT) para o PC do laboratório alcançar o site, o Samba e o SFTP do grupo.
-    *   DNS primário (`ns1`) e secundário (`ns2`) com transferência de zona, zona reversa e registro `MX`; teste com o `ns1` desligado.
-    *   Diretório LDAP do grupo com `lsor-gX`, `sftpusers`, os integrantes e o `novato`, e login unificado com SSSD, `mkhomedir` e `sudo` pelo grupo nas 9 VMs.
-11. **[Aula 11: Projeto Final — Servidor de Arquivos e Aplicação Web em Duas Camadas](Aula11.md)** (25/11)
+9.  **[Aula 09: DNS do Grupo com BIND9 — `ns1` primário e `ns2` secundário](Aula9.md)** (11/11)
+    *   Conceitos de DNS: hierarquia, servidor autoritativo e recursivo, encaminhador, zonas, registros `SOA`, `NS`, `A` e `PTR`, primário e secundário.
+    *   As 9 VMs da Etapa 1 ganham o nome do serviço (`gw`, `ns1`, `ns2`, `www`, `bd`, `arquivos`, `ldap`, `cliente`) no domínio `grupoX.bsi-26-2.maceio.lab`.
+    *   `ns1` primário da zona direta e da reversa, `ns2` secundário com transferência de zona (`allow-transfer`, `also-notify`); DNS de todas as VMs apontado para o grupo; teste com o `ns1` desligado.
+10. **[Aula 10: Diretório LDAP do Grupo e Login Unificado com SSSD](Aula10.md)** (18/11)
+    *   Conceitos de LDAP: árvore do diretório, DN, base, classes de objeto, LDIF e login unificado (NSS, PAM e SSSD).
+    *   OpenLDAP na VM `ldap` com `ou=usuarios`, `ou=grupos`, os grupos `lsor-gX` e `sftpusers`, os integrantes e o `novato`.
+    *   Remoção das contas locais da Etapa 1 e login unificado nas 9 VMs com SSSD, `mkhomedir` e `sudo` pelo grupo `lsor-gX`.
+11. **[Aula 11: Servidor de Arquivos e Aplicação Web em Duas Camadas](Aula11.md)** (25/11)
     *   Samba com os compartilhamentos `publico` e `grupoX` para o grupo do LDAP, SFTP dos integrantes e SFTP restrito (`chroot`) do `novato`.
     *   Site demo com Apache e PHP no `www` e MariaDB no `bd`, área `/admin` autenticada no LDAP e envio do site por SFTP.
     *   Roteiro da apresentação de 02/12.
@@ -88,7 +86,7 @@ Os links abaixo apontam para os roteiros detalhados de cada prática realizada e
 
 ### 🧩 Projeto da Disciplina
 *   **[Projeto — Etapa 1: Rede virtualizada com 8 VMs e Gateway NAT](projeto-etapa1/README.md)**: Cada grupo monta uma rede com 8 VMs Ubuntu Server distribuídas em 4 PCs do laboratório e uma VM gateway, todas em modo Placa em Ponte. O Grupo X usa a sub-rede `192.168.26.(16 × X)/28`, e o gateway liga essa rede à rede do laboratório (`172.20.20.0/22`) com encaminhamento de pacotes e NAT. Inclui a padronização de hostnames e FQDN no domínio `grupoX.bsi-26-2.maceio.lab`, do `/etc/hosts` e dos usuários dos integrantes em todas as VMs. Tem como base as Aulas 01 a 08.
-*   **[Projeto Final: Serviços de rede com login unificado](projeto-final/README.md)**: Cada grupo recebe 8 VMs no servidor do laboratório, acessadas pela VPN da turma: gateway com NAT e firewall, DNS primário e secundário (BIND9), servidor web (Apache e PHP) e banco de dados (MariaDB) em VMs separadas, servidor de arquivos (Samba e SFTP), diretório OpenLDAP com TLS e e-mail (Postfix e Dovecot). As 8 VMs autenticam no LDAP pelo SSSD, de modo que cada integrante usa uma única conta e senha em todos os serviços. Os testes são feitos do computador do próprio aluno, conectado à VPN. Inclui um [site demo em PHP](projeto-final/site-demo/README.md) com consultas ao banco e área de administração autenticada no LDAP.
+*   **[Projeto Final: Serviços de rede com login unificado](projeto-final/README.md)**: Cada grupo usa as mesmas 9 VMs da Etapa 1, no VirtualBox e na sub-rede `192.168.26.(16 × X)/28`, e implanta DNS primário e secundário (BIND9), diretório OpenLDAP, servidor de arquivos (Samba e SFTP), banco de dados (MariaDB) e servidor web (Apache e PHP) em VMs separadas. Todas as VMs autenticam no LDAP pelo SSSD, de modo que cada integrante usa uma única conta e senha em todos os serviços. Os testes são feitos a partir da VM `cliente` do grupo. Inclui um [site demo em PHP](projeto-final/site-demo/README.md) com consultas ao banco e área de administração autenticada no LDAP. Apresentação em 02/12.
 
 ---
 

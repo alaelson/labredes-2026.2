@@ -3,7 +3,8 @@
 -- Executar na VM bd do grupo:   sudo mariadb < criar-banco.sql
 --
 -- Antes de executar, troque:
---   10.10.101.4  -> IP do servidor www do seu grupo
+--   192.168.26.4  -> IP do servidor www do seu grupo (Grupo X: 192.168.26.(16·X + 4))
+--   192.168.26.x na tabela host -> IPs das VMs do seu grupo
 --   TROQUE-ESTA-SENHA -> uma senha forte (a mesma do app/config.php no www)
 -- =====================================================================
 
@@ -62,19 +63,19 @@ INSERT IGNORE INTO aluno (nome, email, login, gid) VALUES
   ('Cicrano de Souza',   'cicrano.souza@grupo0.bsi-26-2.maceio.lab',    'cicrano.souza',    0);
 
 INSERT IGNORE INTO host (nome, fqdn, ip, servico, gid) VALUES
-  ('gw',       'gw.grupo0.bsi-26-2.maceio.lab',       '10.10.101.1', 'Gateway, NAT e firewall',    0),
-  ('ns1',      'ns1.grupo0.bsi-26-2.maceio.lab',      '10.10.101.2', 'DNS primário (BIND9)',       0),
-  ('ns2',      'ns2.grupo0.bsi-26-2.maceio.lab',      '10.10.101.3', 'DNS secundário (BIND9)',     0),
-  ('www',      'www.grupo0.bsi-26-2.maceio.lab',      '10.10.101.4', 'Apache + PHP e SFTP',        0),
-  ('bd',       'bd.grupo0.bsi-26-2.maceio.lab',       '10.10.101.5', 'MariaDB',                    0),
-  ('arquivos', 'arquivos.grupo0.bsi-26-2.maceio.lab', '10.10.101.6', 'Samba e SFTP',               0),
-  ('ldap',     'ldap.grupo0.bsi-26-2.maceio.lab',     '10.10.101.7', 'OpenLDAP (login unificado)', 0),
-  ('mail',     'mail.grupo0.bsi-26-2.maceio.lab',     '10.10.101.8', 'Postfix e Dovecot',          0);
+  ('gw',       'gw.grupo0.bsi-26-2.maceio.lab',       '192.168.26.1', 'Gateway e NAT',              0),
+  ('ns1',      'ns1.grupo0.bsi-26-2.maceio.lab',      '192.168.26.2', 'DNS primário (BIND9)',       0),
+  ('ns2',      'ns2.grupo0.bsi-26-2.maceio.lab',      '192.168.26.3', 'DNS secundário (BIND9)',     0),
+  ('www',      'www.grupo0.bsi-26-2.maceio.lab',      '192.168.26.4', 'Apache + PHP e SFTP',        0),
+  ('bd',       'bd.grupo0.bsi-26-2.maceio.lab',       '192.168.26.5', 'MariaDB',                    0),
+  ('arquivos', 'arquivos.grupo0.bsi-26-2.maceio.lab', '192.168.26.6', 'Samba e SFTP',               0),
+  ('ldap',     'ldap.grupo0.bsi-26-2.maceio.lab',     '192.168.26.7', 'OpenLDAP (login unificado)', 0),
+  ('cliente',  'cliente.grupo0.bsi-26-2.maceio.lab',  '192.168.26.9', 'Cliente de testes',          0);
 
 -- Usuário da aplicação: só entra a partir do servidor www e só no banco "projeto",
 -- com as quatro operações de que o site precisa (nada de ALL PRIVILEGES).
-CREATE USER IF NOT EXISTS 'siteapp'@'10.10.101.4' IDENTIFIED BY 'TROQUE-ESTA-SENHA';
-GRANT SELECT, INSERT, UPDATE, DELETE ON projeto.* TO 'siteapp'@'10.10.101.4';
+CREATE USER IF NOT EXISTS 'siteapp'@'192.168.26.4' IDENTIFIED BY 'TROQUE-ESTA-SENHA';
+GRANT SELECT, INSERT, UPDATE, DELETE ON projeto.* TO 'siteapp'@'192.168.26.4';
 
 -- Conferência
 SHOW TABLES;

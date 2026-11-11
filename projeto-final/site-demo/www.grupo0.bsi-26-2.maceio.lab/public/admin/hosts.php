@@ -59,7 +59,7 @@ cabecalho('Máquinas virtuais', '../');
   <h2><?= $edicao ? 'Editar ' . h($edicao['fqdn']) : 'Nova máquina virtual' ?></h2>
   <label>Nome (hostname curto) <input name="nome" required maxlength="64" value="<?= h($edicao['nome'] ?? '') ?>" placeholder="www"></label>
   <label>FQDN <input name="fqdn" required maxlength="255" value="<?= h($edicao['fqdn'] ?? '') ?>" placeholder="www.grupo1.bsi-26-2.maceio.lab"></label>
-  <label>IP <input name="ip" required maxlength="45" value="<?= h($edicao['ip'] ?? '') ?>" placeholder="10.10.101.20"></label>
+  <label>IP <input name="ip" required maxlength="45" value="<?= h($edicao['ip'] ?? '') ?>" placeholder="192.168.26.8"></label>
   <label>Serviço <input name="servico" maxlength="100" value="<?= h($edicao['servico'] ?? '') ?>" placeholder="Apache + PHP"></label>
   <label>Grupo <select name="gid" required><?= opcoes_grupos(isset($edicao['gid']) ? (int)$edicao['gid'] : null) ?></select></label>
   <div class="acoes">

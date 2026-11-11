@@ -1,21 +1,21 @@
-# Aula 11: Projeto Final — Servidor de Arquivos (Samba e SFTP) e Aplicação Web em Duas Camadas
+# Aula 11: Servidor de Arquivos (Samba e SFTP) e Aplicação Web em Duas Camadas
 
-Objetivo: implantar os serviços que o usuário final enxerga, todos usando as contas do LDAP da [Aula 10](Aula10.md): o **servidor de arquivos** com as mesmas pastas por Samba e por SFTP, e o **site do grupo** com Apache e PHP no `www` e MariaDB no `bd`, com a área de administração protegida pelo LDAP. Fecha com o **roteiro da apresentação de 02/12**. Corresponde às seções 11, 12 e 14 do [Projeto Final](projeto-final/README.md).
+Objetivo: implantar os serviços que o usuário final enxerga, todos usando as contas do LDAP da [Aula 10](Aula10.md). Primeiro o **servidor de arquivos**, com as mesmas pastas por Samba e por SFTP; depois a **aplicação web**, com Apache e PHP no `www` e MariaDB no `bd`, e a área de administração protegida pelo LDAP. Fecha com o **roteiro da apresentação de 02/12**. Corresponde às seções 11, 12 e 13 do [Projeto Final](projeto-final/README.md).
 
-**Duração:** 1h30 em sala + continuação pelo grupo · **Ambiente:** VirtualBox, VMs da Etapa 1 · **Pré-requisito:** Aula 10 funcionando (DNS do grupo, LDAP e SSSD em todas as VMs)
+**Duração:** 1h30 · **Ambiente:** VirtualBox, as 9 VMs da Etapa 1 · **Base:** Aulas 09 e 10 (DNS do grupo, LDAP e SSSD em todas as VMs)
+
+Todos os testes são feitos **a partir da VM `cliente`**, pelo nome das VMs.
 
 ---
 
 ## Organização da aula
 
-| Tempo | Parte | O que o grupo faz |
+| Tempo | Parte | Conteúdo |
 |:--|:--|:--|
-| 0–5 min | Orientação | Conferir o pré-requisito (seção 0) e dividir as tarefas |
-| 5–35 min | Arquivos | Samba e SFTP na VM `arquivos`, testes do `cliente` e do PC do laboratório (seção 1) |
-| 35–75 min | Web e banco | MariaDB no `bd`, Apache e PHP no `www`, site demo e área `/admin` com LDAP (seção 2) |
-| 75–90 min | Apresentação | Roteiro de 02/12 e ensaio dos testes (seção 3) |
-
-As seções 1 e 2 podem andar **em paralelo**: um integrante no `arquivos` (PC3), outros dois no `www` e no `bd` (PC2).
+| 0–5 min | Pré-requisito | Conferir DNS e login unificado (seção 0) |
+| 5–40 min | Prática 1 | Servidor de arquivos: Samba e SFTP na VM `arquivos` (seção 1) |
+| 40–80 min | Prática 2 | Aplicação web: MariaDB no `bd`, Apache e PHP no `www`, área `/admin` com LDAP (seção 2) |
+| 80–90 min | Apresentação | Roteiro de 02/12 (seção 3) |
 
 ---
 
@@ -27,13 +27,13 @@ getent passwd fulano.tal             # uid 10001, vindo do LDAP
 ssh fulano.tal@www 'id'              # entra com a senha do LDAP e mostra o grupo lsor-g0
 ```
 
-Se algum dos três falhar, termine a Aula 10 antes de continuar. Tire um **snapshot** do `arquivos`, do `www` e do `bd` (`antes-aula11`).
+Se algum dos três falhar, termine as Aulas 09 e 10 antes de continuar. Tire um *snapshot* do `arquivos`, do `www` e do `bd` (`antes-aula11`).
 
 ---
 
-## 1. Servidor de arquivos — `arquivos`
+## 1. Prática 1 — Servidor de arquivos (`arquivos`)
 
-O `arquivos` oferece **as mesmas pastas** por dois protocolos: Samba, para abrir no Explorer do Windows, e SFTP, para transferir com FileZilla, WinSCP ou o `sftp` do terminal [1, 2].
+O `arquivos` oferece **as mesmas pastas** por dois protocolos: **Samba** (SMB, o compartilhamento de pastas do Windows) e **SFTP** (transferência de arquivos pelo SSH) [1, 2].
 
 **Tabela 1:** Pastas e acessos (Grupo 0)
 
@@ -48,7 +48,6 @@ O `arquivos` oferece **as mesmas pastas** por dois protocolos: Samba, para abrir
 ```bash
 sudo apt-get update
 sudo apt-get install -y samba smbclient
-sudo systemctl status smbd --no-pager
 sudo ss -tlnp | grep -E ':(139|445)\s'      # Samba escutando nas portas 139 e 445
 
 sudo mkdir -p /srv/arquivos/publico /srv/arquivos/grupo0
@@ -93,6 +92,13 @@ sudo nano /etc/samba/smb.conf
    directory mask = 2770
 ```
 
+| Opção | Função |
+|:--|:--|
+| `map to guest = Bad User` | Usuário inexistente entra como convidado (só onde houver `guest ok`) |
+| `write list = @lsor-g0` | No `publico`, só o grupo grava |
+| `valid users = @lsor-g0` | No `grupo0`, só o grupo entra |
+| `force group`, `create mask`, `directory mask` | Arquivos novos do grupo, com leitura e escrita para o grupo |
+
 ```bash
 testparm -s                 # deve terminar sem erros e listar os dois compartilhamentos
 sudo systemctl restart smbd
@@ -110,7 +116,7 @@ sudo pdbedit -L             # integrantes cadastrados no Samba
 
 ### 1.4 SFTP
 
-**Integrantes:** nada a configurar. O SFTP é parte do SSH, e o login já vem do LDAP. Eles enxergam o sistema todo, com as permissões normais, e trabalham em `/srv/arquivos`.
+**Integrantes:** nada a configurar. O SFTP é parte do SSH, e o login já vem do LDAP. Eles trabalham em `/srv/arquivos`, com as permissões normais.
 
 **`novato`:** só SFTP, preso à própria pasta. No **final** do `/etc/ssh/sshd_config`:
 
@@ -129,140 +135,157 @@ sudo chown novato:sftpusers /srv/sftp/novato/arquivos
 sudo sshd -t && sudo systemctl restart ssh
 ```
 
-### 1.5 Testes do servidor de arquivos
+### 1.5 Testes do servidor de arquivos (na VM `cliente`)
 
-**Da VM `cliente`:**
+Correspondem aos testes 9 a 11 da seção 13 do enunciado.
 
 ```bash
-sudo apt-get install -y smbclient mariadb-client              # clientes de teste (uma vez)
+sudo apt-get install -y smbclient                             # cliente Samba (uma vez)
 smbclient -L //arquivos -N                                   # lista publico e grupo0 sem senha
 smbclient //arquivos/grupo0 -U fulano.tal -c 'put /etc/hostname teste-smb.txt; ls'
-sftp fulano.tal@arquivos <<< 'ls /srv/arquivos/grupo0'       # o arquivo do Samba aparece no SFTP
+sftp fulano.tal@arquivos <<< 'ls -l /srv/arquivos/grupo0'    # o arquivo do Samba aparece no SFTP, grupo lsor-g0
 smbclient //arquivos/grupo0 -U novato -c 'ls'                # NT_STATUS_ACCESS_DENIED
 sftp novato@arquivos <<< 'ls'                                # só a pasta arquivos
 ssh novato@arquivos                                          # recusado: só SFTP
 ```
 
-**Do PC do laboratório**, pelo encaminhamento de portas do `gw` (Aula 10, seção 2):
-
-| Teste | Como | Resultado esperado |
-|:--|:--|:--|
-| Samba | No Explorer, `\\<WAN do gw>\grupo0`, com usuário `fulano.tal` e a senha | Pasta aberta; criar e apagar um arquivo funciona |
-| SFTP | FileZilla ou WinSCP: servidor `<WAN do gw>`, porta **2206**, protocolo SFTP; ou `sftp -P 2206 fulano.tal@<WAN do gw>` no PowerShell | O arquivo gravado pelo Explorer aparece em `/srv/arquivos/grupo0` |
-
-> O Windows 10 e 11 bloqueiam o acesso de **convidado** a compartilhamentos por padrão. O `publico` abre no Explorer com a conta de um integrante; o acesso sem senha se testa com o `smbclient -N` no `cliente` [6].
+> O `novato` também precisa de `sudo smbpasswd -a novato` no `arquivos` para o teste do Samba mostrar `ACCESS_DENIED` (conta válida, mas fora do `lsor-g0`). Sem isso, a resposta é `LOGON_FAILURE`.
 
 ---
 
-## 2. Aplicação web em duas camadas — `bd` e `www`
+## 2. Prática 2 — Aplicação web em duas camadas (`bd` e `www`)
 
-O passo a passo completo está no [README do site demo](projeto-final/site-demo/README.md) [3, 4, 5]. Siga-o com as adaptações abaixo, que valem para a fase do VirtualBox.
+O Apache com PHP roda no `www` e o MariaDB roda no `bd`: cada página atravessa a rede do grupo até o banco. O grupo usa o [site demo](projeto-final/site-demo/README.md), que cadastra grupos, integrantes e VMs [3, 4, 5].
 
-**Tabela 2:** Adaptações para o VirtualBox (Grupo 0)
-
-| No README do site demo | No VirtualBox |
-|:--|:--|
-| `www` = `10.10.101.4`, `bd` = `10.10.101.5` | `www` = `192.168.26.4`, `bd` = `192.168.26.5` (some `16·X` no seu grupo) |
-| `bind-address = 10.10.101.5` | `bind-address = 192.168.26.5` |
-| Envio por SFTP do computador na VPN | Do PC do laboratório, porta **2204** do `gw`: `sftp -P 2204 fulano.tal@<WAN do gw>` |
-| `AuthLDAPURL "ldap://…" STARTTLS` e `LDAPTrustedGlobalCert` | **Sem TLS:** apague a palavra `STARTTLS` do fim da linha e a linha `LDAPTrustedGlobalCert` |
-| Teste com `curl http://www.grupo0…` do computador na VPN | Por nome, do `cliente`; no navegador do PC, `http://<WAN do gw>/` |
+```mermaid
+flowchart LR
+    C["cliente<br/>curl / lynx"] -->|"HTTP :80"| W["www · 192.168.26.4<br/>Apache + PHP"]
+    W -->|"MariaDB :3306<br/>usuário siteapp"| B["bd · 192.168.26.5<br/>MariaDB"]
+    W -->|"/admin: bind com a conta<br/>e grupo lsor-g0"| L["ldap · 192.168.26.7"]
+```
 
 ### 2.1 Banco de dados (`bd`)
 
 ```bash
 sudo apt-get install -y mariadb-server
 sudo mysql_secure_installation
-sudo nano /etc/mysql/mariadb.conf.d/50-server.cnf     # bind-address = 192.168.26.5
+sudo nano /etc/mysql/mariadb.conf.d/50-server.cnf
 ```
 
-Ajuste o script do banco ao seu grupo antes de carregá-lo. No Grupo 0, basta trocar o prefixo da rede; nos outros grupos, confira também o último octeto de cada VM na tabela `host`:
+O MariaDB só escuta em `127.0.0.1` por padrão. Para o `www` alcançá-lo:
+
+```ini
+bind-address = 192.168.26.5
+```
+
+Copie o [`criar-banco.sql`](projeto-final/site-demo/bd/criar-banco.sql) para o `bd` (por SFTP, ou clonando o repositório da disciplina) e ajuste ao seu grupo: o IP do `www` no usuário `siteapp`, os IPs da tabela `host` e a senha `TROQUE-ESTA-SENHA`. Depois:
 
 ```bash
-sed -i 's/10\.10\.101\./192.168.26./g' criar-banco.sql
-nano criar-banco.sql                   # IP do www no usuário siteapp e a senha TROQUE-ESTA-SENHA
 sudo systemctl restart mariadb
 sudo mariadb < criar-banco.sql
 sudo ss -tlnp | grep 3306             # 192.168.26.5:3306
 ```
 
+O usuário `siteapp` só entra **a partir do IP do `www`** e só tem `SELECT`, `INSERT`, `UPDATE` e `DELETE` no banco `projeto`.
+
 ### 2.2 Servidor web (`www`)
 
-Siga a seção 2 do README do site demo: instalação de `apache2`, `php`, `libapache2-mod-php`, `php-mysql` e `mariadb-client`, teste de rede até o banco, envio do site por SFTP, permissões para o grupo `lsor-g0` e `config.php`.
+```bash
+sudo apt-get install -y apache2 php libapache2-mod-php php-mysql mariadb-client
+mariadb -h bd -u siteapp -p projeto -e 'SELECT COUNT(*) FROM host'   # teste de rede até o banco
+```
 
-No *virtual host*, aplique a variante sem TLS:
+Envie a pasta [`www.grupo0.bsi-26-2.maceio.lab/`](projeto-final/site-demo/www.grupo0.bsi-26-2.maceio.lab) para o seu home no `www` por SFTP, com a sua conta do LDAP (`sftp fulano.tal@www` e `put -r`), e instale:
+
+```bash
+sudo cp -r ~/www.grupo0.bsi-26-2.maceio.lab /var/www/
+cd /var/www/www.grupo0.bsi-26-2.maceio.lab
+sudo cp app/config.exemplo.php app/config.php
+sudo nano app/config.php                       # servidor bd, usuário siteapp e a senha
+sudo chown -R root:lsor-g0 .                   # integrantes (grupo do LDAP) podem atualizar o site por SFTP
+sudo find . -type d -exec chmod 2775 {} +
+sudo find . -type f -exec chmod 664 {} +
+sudo chgrp www-data app/config.php && sudo chmod 640 app/config.php   # só o Apache lê a senha
+```
+
+Instale o [*virtual host*](projeto-final/site-demo/apache/www.grupo0.bsi-26-2.maceio.lab.conf), que publica só a pasta `public/` e protege `/admin` com o LDAP. O trecho da área restrita:
 
 ```apache
-    AuthLDAPURL "ldap://ldap.grupo0.bsi-26-2.maceio.lab/ou=usuarios,dc=grupo0,dc=bsi-26-2,dc=maceio,dc=lab?uid?one"
+    <Location /admin>
+        AuthType Basic
+        AuthName "Administração do site - Grupo 0 (login do LDAP)"
+        AuthBasicProvider ldap
+        AuthLDAPURL "ldap://ldap.grupo0.bsi-26-2.maceio.lab/ou=usuarios,dc=grupo0,dc=bsi-26-2,dc=maceio,dc=lab?uid?one"
+        AuthLDAPGroupAttribute memberUid
+        AuthLDAPGroupAttributeIsDN off
+        Require ldap-group cn=lsor-g0,ou=grupos,dc=grupo0,dc=bsi-26-2,dc=maceio,dc=lab
+    </Location>
 ```
 
 ```bash
+sudo cp www.grupo0.bsi-26-2.maceio.lab.conf /etc/apache2/sites-available/
 sudo a2enmod ldap authnz_ldap
 sudo a2ensite www.grupo0.bsi-26-2.maceio.lab
-sudo a2dissite 000-default            # o site do grupo passa a ser o padrão, inclusive pelo IP da WAN do gw
+sudo a2dissite 000-default
 sudo apache2ctl configtest && sudo systemctl reload apache2
+sudo apache2ctl -S                     # o virtual host do grupo na porta 80
 ```
 
-Desativar o `000-default` é o que faz `http://<WAN do gw>/` abrir o site do grupo: o pedido chega pelo DNAT com o IP no lugar do nome, e o Apache entrega o primeiro *virtual host* habilitado.
+### 2.3 Testes da aplicação (na VM `cliente`)
 
-### 2.3 Testes da aplicação
-
-**Da VM `cliente`:**
+Correspondem aos testes 12 a 14 da seção 13 do enunciado.
 
 ```bash
-curl -s http://www.grupo0.bsi-26-2.maceio.lab/ | grep -o 'Conectado[^<]*'                         # conexão com o bd
-curl -s -o /dev/null -w '%{http_code}\n' http://www/admin/                                       # 401
-curl -s -o /dev/null -w '%{http_code}\n' -u fulano.tal http://www/admin/                         # 200
-curl -s -o /dev/null -w '%{http_code}\n' -u novato http://www/admin/                             # 401: fora do lsor-g0
-mariadb -h bd -u siteapp -p projeto -e 'SELECT 1'                                                 # recusado: só o www entra
+sudo apt-get install -y curl lynx mariadb-client                                    # uma vez
+curl -s http://www.grupo0.bsi-26-2.maceio.lab/ | grep -o 'Conectado[^<]*'          # conexão com o bd
+curl -s -o /dev/null -w '%{http_code}\n' http://www/admin/                         # 401
+curl -s -o /dev/null -w '%{http_code}\n' -u fulano.tal http://www/admin/           # 200
+curl -s -o /dev/null -w '%{http_code}\n' -u novato http://www/admin/               # 401: fora do lsor-g0
+mariadb -h bd -u siteapp -p projeto -e 'SELECT 1'                                   # recusado: só o www entra
 ```
 
-**Do PC do laboratório:** abra `http://<WAN do gw>/` no navegador, entre em **Administrar** com a conta de um integrante e cadastre, edite e remova um registro de cada tabela. No `bd`, confira:
+**Cadastro pelo site:** `lynx http://www/admin/` (o `lynx` pede usuário e senha do LDAP), cadastre um integrante em **Integrantes** e uma VM em **Máquinas virtuais**. No `bd`, confira:
 
 ```bash
-sudo mariadb projeto -e 'SELECT * FROM grupo; SELECT * FROM aluno; SELECT * FROM host;'
+sudo mariadb projeto -e 'SELECT * FROM aluno; SELECT * FROM host;'
 ```
-
-**Firewall:** no PowerShell do PC, `Test-NetConnection <WAN do gw> -Port 3306` deve falhar. Só as portas da Tabela 2 da Aula 10 atravessam o `gw`.
 
 ### 2.4 Problemas comuns
 
 | Sintoma | Causa provável | O que fazer |
 |:--|:--|:--|
 | `testparm` acusa erro | Nome de parâmetro digitado errado | Corrija a linha indicada e rode de novo |
-| Explorer pede senha e não aceita | Integrante sem `smbpasswd -a` | Seção 1.3 |
+| `smbclient -U fulano.tal` dá `LOGON_FAILURE` | Integrante sem `smbpasswd -a` | Seção 1.3 |
 | `novato` não entra por SFTP | Pasta do *chroot* não pertence ao `root` ou tem escrita para o grupo | `ls -ld /srv/sftp/novato` deve mostrar `root root drwxr-xr-x` |
 | Página mostra erro de conexão com o banco | `bind-address` ainda em `127.0.0.1`, ou usuário `siteapp` criado com outro IP | `ss -tlnp` no `bd` e o IP no `criar-banco.sql` |
-| `/admin` sempre devolve 401 | `STARTTLS` ainda na linha `AuthLDAPURL`, ou base do LDAP errada | `sudo tail /var/log/apache2/www.grupo0-error.log` |
-| `http://<WAN do gw>/` mostra a página padrão do Apache | `000-default` ainda habilitado | `sudo a2dissite 000-default` e `reload` |
+| `/admin` sempre devolve 401 | Base do LDAP errada no *virtual host*, ou integrante fora do `lsor-g0` | `sudo tail /var/log/apache2/www.grupo0-error.log` |
+| `curl http://www/` mostra a página padrão do Apache | `000-default` ainda habilitado | `sudo a2dissite 000-default` e `reload` |
+| Página PHP aparece como texto | Falta o `libapache2-mod-php` | Instale e reinicie o Apache |
 
 ---
 
 ## 3. Apresentação de 02/12
 
-Cada grupo apresenta **ao vivo**, a partir da VM `cliente` e do PC do laboratório, nesta ordem. Deixe os comandos prontos num arquivo de texto e as VMs ligadas antes da aula.
+Cada grupo apresenta **ao vivo**, a partir da VM `cliente`, os 14 testes da [seção 13 do enunciado](projeto-final/README.md#13-testes-e-apresentação-0212), nesta ordem. Deixe os comandos prontos num arquivo de texto e as VMs ligadas antes da aula.
 
-| # | Serviço | O que mostrar | De onde |
-|:--:|:--|:--|:--|
-| 1 | Topologia | Diagrama do grupo e a tabela de nomes e IPs | Repositório do grupo |
-| 2 | Gateway | `ping 1.1.1.1` de uma VM; `iptables -L FORWARD -n -v` no `gw` | `cliente` e `gw` |
-| 3 | DNS | `dig www`, `dig -x` de um IP, `dig MX`, SOA igual no `ns1` e no `ns2` | `cliente` |
-| 4 | DNS | Desligar o `named` do `ns1` e resolver um nome pelo `ns2` | `ns1` e `cliente` |
-| 5 | LDAP | `ldapsearch` com as contas e os grupos | `cliente` |
-| 6 | Login unificado | `ssh` com o mesmo integrante em três VMs; `id` e `sudo -l`; troca de senha com `ldappasswd` valendo em todas | `cliente` |
-| 7 | Arquivos | Gravar pelo Explorer e ver o arquivo pelo SFTP; `novato` negado no Samba e preso no SFTP | PC do laboratório e `cliente` |
-| 8 | Web | Site pelo IP da WAN do `gw`; `/admin` com a conta do LDAP; cadastro refletido no `bd` | PC do laboratório e `bd` |
-| 9 | Firewall | Porta 3306 bloqueada a partir do PC | PC do laboratório |
-| 10 | Bônus | TLS no LDAP, e-mail ou outro desafio da seção 15 do enunciado, se houver | — |
+| # | Serviço | O que mostrar | Testes |
+|:--:|:--|:--|:--:|
+| 1 | Topologia | Diagrama do grupo e a tabela de nomes e IPs | — |
+| 2 | Gateway | `ping 1.1.1.1` do `cliente` | 1 |
+| 3 | DNS | `dig www`, `dig -x` de um IP, SOA igual no `ns1` e no `ns2`; `ns2` respondendo com o `ns1` parado | 2 a 5 |
+| 4 | LDAP e login | `ldapsearch`; `ssh` com o mesmo integrante em três VMs; `id` e `sudo -l`; troca de senha com `ldappasswd` | 6 a 8 |
+| 5 | Arquivos | Gravar pelo Samba e ver o arquivo pelo SFTP; `novato` negado no Samba e preso no SFTP | 9 a 11 |
+| 6 | Web | Página com a conexão ao `bd`; `/admin` com a conta do LDAP; cadastro refletido no `bd` | 12 a 14 |
+| 7 | Bônus | Firewall, TLS, e-mail ou backup, se houver | — |
 
-Cada integrante deve saber explicar pelo menos um serviço. Se o servidor do laboratório ficar pronto antes de 02/12, a mesma sequência é feita lá, pela VPN da turma.
+Cada integrante deve saber explicar pelo menos um serviço.
 
 ---
 
 ## 4. Registro no repositório do grupo
 
-1. **Arquivos:** `smb.conf`, `testparm -s`, `pdbedit -L`, o trecho `Match` do `sshd_config` e os testes da seção 1.5, incluindo a captura do Explorer.
-2. **Web e banco:** `50-server.cnf` (só o `bind-address`), o *virtual host*, `apache2ctl -S`, os testes da seção 2.3 e capturas das páginas de início, consulta e administração.
+1. **Arquivos:** `smb.conf`, `testparm -s`, `pdbedit -L`, o trecho `Match` do `sshd_config` e os testes da seção 1.5.
+2. **Web e banco:** `50-server.cnf` (só o `bind-address`), o *virtual host*, `apache2ctl -S` e os testes da seção 2.3.
 3. Sem senhas, *hashes* ou o conteúdo do `config.php`.
 
 ---
@@ -278,5 +301,3 @@ Cada integrante deve saber explicar pelo menos um serviço. Se o servidor do lab
 [4] APACHE SOFTWARE FOUNDATION. **Apache Module mod_authnz_ldap**. Disponível em: <https://httpd.apache.org/docs/2.4/mod/mod_authnz_ldap.html>.
 
 [5] MARIADB FOUNDATION. **MariaDB Knowledge Base — Configuring MariaDB for Remote Client Access**. Disponível em: <https://mariadb.com/kb/en/configuring-mariadb-for-remote-client-access/>.
-
-[6] MICROSOFT. **Guest access in SMB2 and SMB3 disabled by default in Windows**. Disponível em: <https://learn.microsoft.com/en-us/troubleshoot/windows-server/networking/guest-access-in-smb2-is-disabled-by-default>.

@@ -4,436 +4,227 @@
 
 ### 1. Apresentação
 
-Na Etapa 1, cada grupo montou no laboratório uma rede privada com IPs fixos, nomes no domínio do grupo e um gateway NAT. No Projeto Final, o grupo recebe **8 máquinas virtuais no servidor do laboratório** e transforma essa rede num ambiente de serviços completo, como o de uma pequena empresa:
+Na Etapa 1, cada grupo montou no laboratório uma rede privada com 9 VMs, IPs fixos e um gateway NAT. No Projeto Final, o grupo **usa as mesmas 9 VMs, nos mesmos PCs e com os mesmos IPs**, e transforma essa rede num ambiente de serviços, como o de uma pequena empresa:
 
 | Serviço | VM | O que o grupo vai implantar |
 |:--|:--|:--|
-| **Gateway e firewall** | `gw` | Roteamento, NAT e filtragem de pacotes entre a rede do grupo e o resto da rede |
-| **DNS** | `ns1` e `ns2` | Servidor de nomes primário (master) e secundário (slave) com BIND9, zona direta e reversa |
-| **Servidor web** | `www` | Apache com PHP, publicando a aplicação do grupo, e SFTP para enviar os arquivos do site |
-| **Banco de dados** | `bd` | MariaDB acessado pela rede, a partir do `www` |
+| **Gateway** | `gw` | Roteamento e NAT da rede do grupo (já feito na Etapa 1) |
+| **DNS** | `ns1` e `ns2` | Servidor de nomes primário e secundário com BIND9, zona direta e reversa |
+| **Login unificado** | `ldap` | Diretório OpenLDAP com os usuários e grupos; todas as VMs autenticam nele |
 | **Servidor de arquivos** | `arquivos` | Compartilhamentos Samba e SFTP sobre as mesmas pastas |
-| **Login unificado** | `ldap` | Diretório OpenLDAP com TLS; as 8 VMs autenticam nele |
-| **E-mail** | `mail` | Postfix (envio e entrega) e Dovecot (leitura por IMAP) |
+| **Banco de dados** | `bd` | MariaDB acessado pela rede, a partir do `www` |
+| **Servidor web** | `www` | Apache com PHP, publicando a aplicação do grupo |
+| **Cliente de testes** | `cliente` | VM de onde o grupo testa todos os serviços pelo nome |
 
-O ponto central do projeto é o **login unificado**: cada integrante tem **uma única conta e senha**, guardadas no LDAP, e usa essa conta para entrar por SSH em qualquer VM, enviar arquivos por SFTP, abrir a pasta do grupo, ler e enviar e-mail e administrar o site.
+O ponto central do projeto é o **login unificado**: cada integrante tem **uma única conta e senha**, guardadas no LDAP, e usa essa conta para entrar por SSH em qualquer VM, enviar arquivos por SFTP, abrir a pasta do grupo e administrar o site.
 
-O **cliente de testes é o próprio computador do aluno**, conectado à VPN da turma: é dele que o aluno acessa o site no navegador, envia arquivos com um cliente SFTP, abre a pasta compartilhada e lê o e-mail.
-
-> **Escopo e prazos de 2026.2**
->
-> | | |
-> |:--|:--|
-> | **Obrigatório** | Gateway com NAT e firewall, DNS primário e secundário, LDAP com login unificado (SSSD) nas VMs, servidor de arquivos (Samba e SFTP), servidor web e banco de dados |
-> | **Bônus** (seção 15) | **TLS no LDAP** (seção 9, item 5) e **e-mail** (seção 13). Sem TLS, use as variantes "sem TLS" das seções 10 e 12 |
-> | **Onde** | O projeto **começa no VirtualBox do laboratório** (seção 3.1), com os mesmos últimos octetos do servidor. Se o servidor do laboratório ficar pronto antes de 02/12, os grupos migram e apresentam lá |
-> | **Aulas de apoio** | [Aula 09](../Aula9.md) (11/11): DNS e LDAP · [Aula 10](../Aula10.md) (18/11): gateway, DNS do grupo e login unificado · [Aula 11](../Aula11.md) (25/11): arquivos e web |
-> | **Apresentação** | **02/12**, com os testes da seção 14 executados ao vivo |
+| Aula de apoio | Data | Seções do projeto |
+|:--|:--|:--|
+| [Aula 09: DNS do grupo](../Aula9.md) | 11/11 | 7 e 8 |
+| [Aula 10: LDAP e login unificado](../Aula10.md) | 18/11 | 9 e 10 |
+| [Aula 11: Arquivos e aplicação web](../Aula11.md) | 25/11 | 11 e 12 |
+| **Apresentação** | **02/12** | 13 |
 
 ### 2. Objetivos
 
 Ao final do projeto, o grupo deve ser capaz de:
 
-1. Configurar um gateway com roteamento, NAT e firewall para uma rede de servidores.
-2. Configurar um DNS autoritativo com servidor primário e secundário, transferência de zona e resolução reversa.
-3. Criar um diretório LDAP com usuários e grupos POSIX, protegido com TLS.
-4. Integrar servidores Linux ao LDAP com SSSD e PAM, centralizando login, diretório home e `sudo`.
-5. Publicar arquivos por Samba e SFTP com permissões por grupo.
-6. Montar uma aplicação web em duas camadas (Apache com PHP numa VM, MariaDB em outra), com área restrita autenticada no LDAP.
-7. Configurar envio e leitura de e-mail autenticados para o domínio do grupo.
-8. Testar cada serviço a partir de um cliente remoto e documentar as evidências.
+1. Configurar um DNS autoritativo com servidor primário e secundário, transferência de zona e resolução reversa.
+2. Criar um diretório LDAP com usuários e grupos POSIX.
+3. Integrar servidores Linux ao LDAP com SSSD e PAM, centralizando login, diretório home e `sudo`.
+4. Publicar arquivos por Samba e SFTP com permissões por grupo.
+5. Montar uma aplicação web em duas camadas (Apache com PHP numa VM, MariaDB em outra), com área restrita autenticada no LDAP.
+6. Testar cada serviço e documentar as evidências.
 
 ### 3. Ambiente
 
 | Item | Valor |
 |:--|:--|
-| Onde | Servidor do laboratório (Proxmox VE), uma rede isolada por grupo |
-| Acesso | VPN da turma: PC pessoal, PC do laboratório ou GitHub Codespaces |
-| Sistema | Ubuntu Server 24.04 LTS em todas as VMs |
-| VMs por grupo | 8, já criadas pelo professor |
-| Hardware de cada VM | 1 vCPU, 512 MB de RAM (o `bd` pode crescer até 1 GB), 16 GB de disco |
-| Usuário inicial | `administrador`, com senha entregue ao grupo em particular (não publique) |
+| Onde | VirtualBox nos 4 PCs do grupo no laboratório, placas em modo **Bridge** (como na Etapa 1) |
+| VMs | As 9 VMs da Etapa 1: o gateway e as VM1 a VM8 |
+| Sistema | Ubuntu Server da Etapa 1 |
+| Placas de rede | `enp0s3` em todas as VMs; no `gw`, `enp0s3` (WAN) e `enp0s8` (LAN) |
+| Usuário local | `administrador`, mantido em todas as VMs como acesso de emergência |
 
-As VMs são entregues **ligadas, com o hostname, o IP, a máscara, a rota padrão e o DNS inicial já configurados**. Todo o resto é trabalho do grupo, começando pelo gateway: até ele encaminhar pacotes, só a VM `gw` responde pela VPN.
-
-- Placas de rede: no servidor, as placas aparecem como **`ens18`** (e `ens19` no `gw`), e não como `enp0s3`/`enp0s8` do VirtualBox. Confira com `ip -br addr` e use esses nomes no Netplan e nas regras do firewall.
-- Revise o arquivo `/etc/netplan/50-cloud-init.yaml` de cada VM e registre-o no tutorial, como na Etapa 1.
-- Antes de cada serviço, **tire um *snapshot*** da VM pelo painel do servidor. Se a configuração quebrar, volte ao *snapshot*.
-
-#### 3.1 Começo no VirtualBox do laboratório
-
-Enquanto o servidor não estiver pronto, cada grupo **reaproveita as 9 VMs da Etapa 1**, nos mesmos PCs e com as placas em modo Bridge. A distribuição dos serviços mantém **o mesmo último octeto** da seção 5: na migração para o servidor, muda só o prefixo da rede (`192.168.26.x` → `10.10.101.x`) e o nome das placas (`enp0s3`/`enp0s8` → `ens18`/`ens19`).
-
-| VM da Etapa 1 | IP (Grupo X) | Vira | Hostname novo (Grupo 0) |
-|:--|:--|:--|:--|
-| Gateway | WAN `172.20.23.x` · LAN `16·X + 1` | `gw` | `gw.grupo0.bsi-26-2.maceio.lab` |
-| VM1 | `16·X + 2` | `ns1` | `ns1.grupo0.bsi-26-2.maceio.lab` |
-| VM2 | `16·X + 3` | `ns2` | `ns2.grupo0.bsi-26-2.maceio.lab` |
-| VM3 | `16·X + 4` | `www` | `www.grupo0.bsi-26-2.maceio.lab` |
-| VM4 | `16·X + 5` | `bd` | `bd.grupo0.bsi-26-2.maceio.lab` |
-| VM5 | `16·X + 6` | `arquivos` | `arquivos.grupo0.bsi-26-2.maceio.lab` |
-| VM6 | `16·X + 7` | `ldap` | `ldap.grupo0.bsi-26-2.maceio.lab` |
-| VM7 | `16·X + 8` | `mail` (bônus) | `mail.grupo0.bsi-26-2.maceio.lab` |
-| VM8 | `16·X + 9` | `cliente` (testes dentro da rede do grupo) | `cliente.grupo0.bsi-26-2.maceio.lab` |
-
-Diferenças em relação ao servidor, que valem só nesta fase:
-
-- **Rede do grupo:** `192.168.26.(16·X)/28` da Etapa 1, com o gateway em `16·X + 1`. Onde o enunciado diz `10.10.101`, use `192.168.26`.
-- **Contas locais dos integrantes:** as contas criadas na Etapa 1 precisam ser **removidas** (mantendo o `administrador`), senão o Linux usa a conta local e ignora a do LDAP. O passo a passo está na [Aula 10](../Aula10.md).
-- **Acesso a partir do PC do laboratório:** sem VPN, o PC alcança a rede do grupo pelo **encaminhamento de portas (DNAT) no `gw`**: `http://<WAN do gw>/` abre o site, `\\<WAN do gw>\grupoX` abre a pasta e `ssh -p 2206 fulano.tal@<WAN do gw>` entra no `arquivos`. As regras estão na [Aula 10](../Aula10.md).
-- **Testes por nome:** feitos a partir da VM `cliente` (VM8), que usa o DNS do grupo.
+- Antes de cada serviço, **tire um *snapshot*** da VM (**Máquina → Tirar Snapshot** no VirtualBox). Se a configuração quebrar, volte a ele.
+- As contas locais dos integrantes, criadas na Etapa 1, são **removidas** na Aula 10: a partir dela, as contas vêm do LDAP.
 
 ### 4. Topologia
 
-**Figura 1:** Topologia lógica e serviços (exemplo do Grupo 0, modelo).
+**Figura 1:** Topologia do Grupo 0 (modelo). Nos outros grupos, muda a sub-rede (seção 5).
 
-![Topologia lógica com os serviços](topologia-servicos-pf.png)
+```mermaid
+flowchart TB
+    LAB["Rede do laboratório 172.20.20.0/22<br/>internet"]
+    GW["gw · gateway e NAT<br/>WAN enp0s3: 172.20.23.x<br/>LAN enp0s8: 192.168.26.1"]
+    LAB --- GW
+    subgraph REDE["Rede do Grupo 0 — 192.168.26.0/28 — grupo0.bsi-26-2.maceio.lab"]
+        NS1["ns1 · DNS primário<br/>192.168.26.2"]
+        NS2["ns2 · DNS secundário<br/>192.168.26.3"]
+        WWW["www · Apache + PHP<br/>192.168.26.4"]
+        BD["bd · MariaDB<br/>192.168.26.5"]
+        ARQ["arquivos · Samba e SFTP<br/>192.168.26.6"]
+        LDAP["ldap · OpenLDAP<br/>192.168.26.7"]
+        CLI["cliente · testes<br/>192.168.26.9"]
+    end
+    GW --- REDE
+```
 
-**Figura 2:** Login unificado. Todos os serviços consultam o mesmo diretório LDAP.
+**Figura 2:** Login unificado. Todas as VMs e serviços consultam o mesmo diretório.
 
-![Login unificado com LDAP](login-unificado-ldap.png)
-
-Diagrama editável no Lucid: [LSOR BSI - Projeto Final - Topologia de Serviços](https://lucid.app/lucidchart/2545f7c4-b516-4c3a-9a05-80b9972dc18c/view)
+```mermaid
+flowchart LR
+    U["fulano.tal<br/>uma conta e uma senha"]
+    U --> SSH["SSH e sudo<br/>em todas as VMs"]
+    U --> ARQ["arquivos<br/>Samba e SFTP"]
+    U --> WWW["www<br/>área /admin"]
+    SSH --> LDAP["ldap · 192.168.26.7<br/>dc=grupo0,dc=bsi-26-2,dc=maceio,dc=lab"]
+    ARQ --> LDAP
+    WWW --> LDAP
+```
 
 ### 5. Endereçamento e nomes
 
-A turma usa a rede **`10.10.101.0/24`**, dividida em sub-redes **/28**, uma por grupo, na mesma regra da Etapa 1: o Grupo **X** usa a sub-rede `10.10.101.(16 × X)/28`. O último /28 (`10.10.101.240/28`) é a **rede de trânsito** que liga o `gw` de cada grupo ao firewall do servidor.
+A turma usa a rede **`192.168.26.0/24`** da Etapa 1, dividida em sub-redes **/28**, uma por grupo: o Grupo **X** usa `192.168.26.(16 × X)/28`. Cada VM mantém o IP da Etapa 1 e ganha o **nome do serviço** como hostname.
 
-| VM | IP na rede do grupo | Grupo 0 (modelo) | Grupo 1 | FQDN (Grupo 0) |
-|:--|:--|:--|:--|:--|
-| `gw` (LAN, `ens19`) | `16·X + 1` | 10.10.101.1 | 10.10.101.17 | `gw.grupo0.bsi-26-2.maceio.lab` |
-| `gw` (WAN, `ens18`) | `10.10.101.(242 + X)/28` | 10.10.101.242 | 10.10.101.243 | — |
-| `ns1` | `16·X + 2` | 10.10.101.2 | 10.10.101.18 | `ns1.grupo0.bsi-26-2.maceio.lab` |
-| `ns2` | `16·X + 3` | 10.10.101.3 | 10.10.101.19 | `ns2.grupo0.bsi-26-2.maceio.lab` |
-| `www` | `16·X + 4` | 10.10.101.4 | 10.10.101.20 | `www.grupo0.bsi-26-2.maceio.lab` |
-| `bd` | `16·X + 5` | 10.10.101.5 | 10.10.101.21 | `bd.grupo0.bsi-26-2.maceio.lab` |
-| `arquivos` | `16·X + 6` | 10.10.101.6 | 10.10.101.22 | `arquivos.grupo0.bsi-26-2.maceio.lab` |
-| `ldap` | `16·X + 7` | 10.10.101.7 | 10.10.101.23 | `ldap.grupo0.bsi-26-2.maceio.lab` |
-| `mail` | `16·X + 8` | 10.10.101.8 | 10.10.101.24 | `mail.grupo0.bsi-26-2.maceio.lab` |
+| VM da Etapa 1 | Serviço | IP | Grupo 0 (modelo) | Grupo 1 | FQDN (Grupo 0) |
+|:--|:--|:--|:--|:--|:--|
+| Gateway (LAN) | `gw` | `16·X + 1` | 192.168.26.1 | 192.168.26.17 | `gw.grupo0.bsi-26-2.maceio.lab` |
+| VM1 | `ns1` | `16·X + 2` | 192.168.26.2 | 192.168.26.18 | `ns1.grupo0.bsi-26-2.maceio.lab` |
+| VM2 | `ns2` | `16·X + 3` | 192.168.26.3 | 192.168.26.19 | `ns2.grupo0.bsi-26-2.maceio.lab` |
+| VM3 | `www` | `16·X + 4` | 192.168.26.4 | 192.168.26.20 | `www.grupo0.bsi-26-2.maceio.lab` |
+| VM4 | `bd` | `16·X + 5` | 192.168.26.5 | 192.168.26.21 | `bd.grupo0.bsi-26-2.maceio.lab` |
+| VM5 | `arquivos` | `16·X + 6` | 192.168.26.6 | 192.168.26.22 | `arquivos.grupo0.bsi-26-2.maceio.lab` |
+| VM6 | `ldap` | `16·X + 7` | 192.168.26.7 | 192.168.26.23 | `ldap.grupo0.bsi-26-2.maceio.lab` |
+| VM7 | livre | `16·X + 8` | 192.168.26.8 | 192.168.26.24 | — |
+| VM8 | `cliente` | `16·X + 9` | 192.168.26.9 | 192.168.26.25 | `cliente.grupo0.bsi-26-2.maceio.lab` |
 
-- Máscara `/28` (255.255.255.240); rota padrão de todas as VMs = IP de LAN do `gw`; rota padrão do `gw` = `10.10.101.241` (firewall do servidor).
-- Domínio do grupo: `grupoX.bsi-26-2.maceio.lab`. O hostname de cada VM é o **nome do serviço**.
-- Os endereços `16·X + 9` a `16·X + 14` ficam livres.
+- Máscara `/28` (255.255.255.240); rota padrão de todas as VMs = IP de LAN do `gw`.
+- Domínio do grupo: `grupoX.bsi-26-2.maceio.lab`.
 
-| Grupo | Sub-rede | `gw` LAN | WAN do `gw` | Broadcast |
+| Grupo | Sub-rede | `gw` (LAN) | `ns1` | Broadcast |
 |:--:|:--|:--|:--|:--|
-| 0 (modelo) | 10.10.101.0/28 | .1 | .242 | .15 |
-| 1 | 10.10.101.16/28 | .17 | .243 | .31 |
-| 2 | 10.10.101.32/28 | .33 | .244 | .47 |
-| 3 | 10.10.101.48/28 | .49 | .245 | .63 |
-| 4 | 10.10.101.64/28 | .65 | .246 | .79 |
-| 5 | 10.10.101.80/28 | .81 | .247 | .95 |
+| 0 (modelo) | 192.168.26.0/28 | .1 | .2 | .15 |
+| 1 | 192.168.26.16/28 | .17 | .18 | .31 |
+| 2 | 192.168.26.32/28 | .33 | .34 | .47 |
+| 3 | 192.168.26.48/28 | .49 | .50 | .63 |
+| 4 | 192.168.26.64/28 | .65 | .66 | .79 |
+| 5 | 192.168.26.80/28 | .81 | .82 | .95 |
 
 ### 6. Ordem de implementação
 
-| Passo | Serviço | Depende de | Seção |
-|:--:|:--|:--|:--:|
-| 1 | Gateway: encaminhamento, NAT e firewall | — | 7 |
-| 2 | DNS primário e secundário | Gateway | 8 |
-| 3 | Servidor LDAP com TLS | DNS | 9 |
-| 4 | Login unificado nas 8 VMs | LDAP | 10 |
-| 5 | Servidor de arquivos (Samba e SFTP) | Login unificado | 11 |
-| 6 | Banco de dados e servidor web | DNS e LDAP | 12 |
-| 7 | E-mail | DNS (registro MX) e login unificado | 13 |
+| Passo | Serviço | Depende de | Seção | Aula |
+|:--:|:--|:--|:--:|:--:|
+| 1 | Preparação: hostnames e gateway | — | 7 | 09 |
+| 2 | DNS primário e secundário | Passo 1 | 8 | 09 |
+| 3 | Servidor LDAP | DNS | 9 | 10 |
+| 4 | Login unificado nas 9 VMs | LDAP | 10 | 10 |
+| 5 | Servidor de arquivos (Samba e SFTP) | Login unificado | 11 | 11 |
+| 6 | Banco de dados e servidor web | DNS e LDAP | 12 | 11 |
 
-Só passe para o próximo passo depois de testar o anterior **a partir do seu computador** (seção 14).
+Só passe para o próximo passo depois de testar o anterior a partir da VM `cliente` (seção 13).
 
-### 7. Gateway — `gw`
+### 7. Preparação e gateway
 
-O `gw` tem duas placas: `ens18` na rede de trânsito (WAN) e `ens19` na rede do grupo (LAN). Como na [Aula 08](../Aula8.md) e na Etapa 1, ele vai encaminhar e mascarar o tráfego do grupo, e agora também **filtrar** o que entra [1, 2].
-
-**Requisitos:**
-
-1. Encaminhamento de pacotes persistente (`net.ipv4.ip_forward=1`).
-2. NAT (`MASQUERADE`) só para o tráfego da rede do grupo que **sai** pela WAN:
+1. **Hostname** de cada VM = nome do serviço, com `hostnamectl` (ex.: `ns1.grupo0.bsi-26-2.maceio.lab`). No `/etc/hosts`, fica só a linha `127.0.1.1` com o nome da própria VM; os demais nomes passam a vir do DNS.
+2. **Gateway:** encaminhamento de pacotes e NAT da Etapa 1, persistentes após o *reboot* [1, 2]:
 
 ```bash
-sudo iptables -t nat -A POSTROUTING -s 10.10.101.0/28 -o ens18 -j MASQUERADE
+sudo sysctl net.ipv4.ip_forward                      # = 1
+sudo iptables -t nat -L POSTROUTING -n -v            # MASQUERADE de 192.168.26.0/28 saindo pela enp0s3
 ```
-
-3. Firewall na cadeia `FORWARD`, com política padrão `DROP`:
-
-| Regra | Origem | Destino | Portas |
-|:--|:--|:--|:--|
-| Respostas | qualquer | qualquer | conexões `ESTABLISHED,RELATED` |
-| Saída do grupo | `10.10.101.0/28` | qualquer | todas |
-| Alunos na VPN | `10.255.1.0/24` | `10.10.101.0/28` | 22, 53, 80, 445, 587, 993, ICMP |
-| DNS do servidor | `10.10.101.241` | `ns1`, `ns2` | 53 (tcp e udp) |
-
-```bash
-sudo iptables -P FORWARD DROP
-sudo iptables -A FORWARD -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
-sudo iptables -A FORWARD -i ens19 -o ens18 -s 10.10.101.0/28 -j ACCEPT
-sudo iptables -A FORWARD -i ens18 -o ens19 -s 10.255.1.0/24 -p tcp -m multiport --dports 22,53,80,445,587,993 -j ACCEPT
-sudo iptables -A FORWARD -i ens18 -o ens19 -s 10.255.1.0/24 -p udp --dport 53 -j ACCEPT
-sudo iptables -A FORWARD -i ens18 -o ens19 -s 10.255.1.0/24 -p icmp -j ACCEPT
-sudo iptables -A FORWARD -i ens18 -o ens19 -s 10.10.101.241 -d 10.10.101.2,10.10.101.3 -p udp --dport 53 -j ACCEPT
-sudo iptables -A FORWARD -i ens18 -o ens19 -s 10.10.101.241 -d 10.10.101.2,10.10.101.3 -p tcp --dport 53 -j ACCEPT
-sudo netfilter-persistent save
-```
-
-4. O `gw` também autentica no LDAP (seção 10) e mantém o `administrador` local para emergências.
-
-> **Por que o aluno alcança as VMs sem DNAT?** O firewall do servidor tem uma rota para a rede de cada grupo apontando para o `gw` do grupo. O tráfego da VPN chega roteado, e o `gw` decide pela cadeia `FORWARD` o que entra. O NAT fica só para a saída do grupo para a internet.
 
 ### 8. DNS — `ns1` (primário) e `ns2` (secundário)
 
-O DNS do grupo responde pelos nomes da tabela da seção 5. O firewall do servidor encaminha as consultas de `grupoX.bsi-26-2.maceio.lab` para o `ns1` e o `ns2` do grupo, de modo que **o computador do aluno, na VPN, também resolve esses nomes** [3, 4, 5].
+O DNS do grupo responde pelos nomes da seção 5 [3, 4, 5]. Passo a passo na [Aula 09](../Aula9.md).
 
 **Requisitos:**
 
-1. Instalar o BIND9 em `ns1` e `ns2`.
-2. Em `ns1`, criar como **primário** (`type primary`, antigo `master`):
-   - a zona direta `grupo0.bsi-26-2.maceio.lab`, com um registro **A** para cada VM, os registros **NS** (`ns1`, `ns2`) e o registro **MX** (`mail`);
-   - a zona reversa, com um **PTR** para cada VM do grupo (seção 8.1).
-3. Em `ns2`, criar as mesmas zonas como **secundário** (`type secondary`, antigo `slave`), transferidas do `ns1`.
-4. No `ns1`, liberar a transferência só para o `ns2` (`allow-transfer`) e notificá-lo das alterações (`also-notify`).
-5. Responder às consultas da rede do grupo, do firewall do servidor e da VPN; **recursão só para a rede do grupo**:
-
-```
-acl grupo  { 10.10.101.0/28; localhost; };
-acl turma  { 10.10.101.0/24; 10.255.1.0/24; };
-options {
-    // ...
-    allow-query     { grupo; turma; };
-    allow-recursion { grupo; };
-    forwarders      { 10.10.101.241; };
-};
-```
-
-6. Incrementar o **serial** do SOA a cada alteração, no formato `AAAAMMDDnn`.
-7. Depois de testar, apontar o DNS de **todas as VMs** para `ns1` e `ns2`, com o domínio de busca do grupo:
-
-```yaml
-      nameservers:
-        search: [grupo0.bsi-26-2.maceio.lab]
-        addresses: [10.10.101.2, 10.10.101.3]
-```
-
-> Os registros **NS** e **MX** precisam apontar para nomes com registro de endereço próprio, nunca para um apelido (CNAME) [6]. Como cada VM tem como hostname o nome do serviço, basta um registro A por VM.
-
-#### 8.1 Zona reversa
-
-Cada grupo declara a zona reversa `101.10.10.in-addr.arpa` contendo **só os PTR das suas 8 VMs** (ex.: `4 IN PTR www.grupo0.bsi-26-2.maceio.lab.`). O firewall do servidor encaminha a consulta reversa de cada endereço para o DNS do grupo dono daquele endereço, de modo que `dig -x 10.10.101.4` funciona a partir de qualquer lugar da VPN.
-
-> Numa rede real, quem recebe só um pedaço (/28) de uma rede usa a delegação *classless* da RFC 2317 [7], com uma zona como `0-15.101.10.10.in-addr.arpa`. Fica como desafio opcional (seção 15).
-
-**Validação antes de recarregar:**
-
-```bash
-sudo named-checkconf
-sudo named-checkzone grupo0.bsi-26-2.maceio.lab /etc/bind/db.grupo0
-sudo named-checkzone 101.10.10.in-addr.arpa /etc/bind/db.10.10.101
-sudo rndc reload
-```
+1. BIND9 em `ns1` e `ns2`, com recursão só para a rede do grupo e o DNS do laboratório (`172.20.20.1`) como encaminhador.
+2. No `ns1`, como **primário**:
+   - a zona direta `grupo0.bsi-26-2.maceio.lab`, com os registros **NS** (`ns1`, `ns2`) e um registro **A** para cada VM da seção 5;
+   - a zona reversa `26.168.192.in-addr.arpa`, com um **PTR** para cada VM do grupo.
+3. No `ns2`, as mesmas zonas como **secundário**, transferidas do `ns1`.
+4. No `ns1`, transferência liberada só para o `ns2` (`allow-transfer`) e aviso de alterações (`also-notify`).
+5. **Serial** do SOA incrementado a cada alteração, no formato `AAAAMMDDnn`.
+6. DNS de **todas as VMs** apontado para `ns1` e `ns2`, com o domínio de busca do grupo.
 
 ### 9. LDAP — `ldap`
 
-O OpenLDAP guarda os usuários e grupos do projeto no formato POSIX (RFC 2307), o mesmo dos arquivos `/etc/passwd` e `/etc/group` [8, 9, 10].
+O OpenLDAP guarda os usuários e grupos do projeto no formato POSIX (RFC 2307), o mesmo dos arquivos `/etc/passwd` e `/etc/group` [6, 7, 8]. Passo a passo na [Aula 10](../Aula10.md).
 
 **Requisitos:**
 
-1. Instalar `slapd` e `ldap-utils` e reconfigurar com `sudo dpkg-reconfigure slapd`, usando o domínio do grupo. A base fica `dc=grupo0,dc=bsi-26-2,dc=maceio,dc=lab`.
-2. Criar as unidades organizacionais `ou=usuarios` e `ou=grupos`.
-3. Criar os grupos POSIX (`posixGroup`):
+1. `slapd` configurado com o domínio do grupo. Base: `dc=grupo0,dc=bsi-26-2,dc=maceio,dc=lab`.
+2. Unidades organizacionais `ou=usuarios` e `ou=grupos`.
+3. Grupos POSIX:
 
-| Grupo | `gidNumber` | Membros (`memberUid`) | Uso |
+| Grupo | `gidNumber` | Membros | Uso |
 |:--|:--:|:--|:--|
-| `lsor-g0` | 10000 | todos os integrantes | `sudo` nas VMs, pasta do grupo, publicação do site e área `/admin` |
-| `sftpusers` | 10001 | `novato` | Usuários que só podem usar SFTP no `arquivos` |
+| `lsor-g0` | 10000 | todos os integrantes | `sudo` nas VMs, pasta do grupo e área `/admin` do site |
+| `sftpusers` | 10001 | `novato` | Usuário que só pode usar SFTP no `arquivos` |
 
-4. Criar um usuário (`inetOrgPerson`, `posixAccount`, `shadowAccount`) para **cada integrante**, com login `nome.sobrenome`, e o usuário `novato`:
-   - `uidNumber` a partir de **10001** (as contas locais começam em 1000);
+4. Um usuário para **cada integrante**, com login `nome.sobrenome`, e o usuário `novato`:
+   - `uidNumber` a partir de **10001** para os integrantes; `10100` para o `novato`;
    - `homeDirectory: /home/<login>` e `loginShell: /bin/bash` (`/usr/sbin/nologin` para o `novato`);
-   - `mail: <login>@grupo0.bsi-26-2.maceio.lab`;
-   - senha gerada com `slappasswd` (nunca em texto puro no LDIF).
+   - senha gerada com `slappasswd`, nunca em texto puro no LDIF.
 
-```ldif
-dn: uid=fulano.tal,ou=usuarios,dc=grupo0,dc=bsi-26-2,dc=maceio,dc=lab
-objectClass: inetOrgPerson
-objectClass: posixAccount
-objectClass: shadowAccount
-uid: fulano.tal
-cn: Fulano de Tal
-sn: Tal
-mail: fulano.tal@grupo0.bsi-26-2.maceio.lab
-uidNumber: 10001
-gidNumber: 10000
-homeDirectory: /home/fulano.tal
-loginShell: /bin/bash
-userPassword: {SSHA}cole-aqui-a-saida-do-slappasswd
-```
+### 10. Login unificado nas 9 VMs (SSSD)
 
-5. **Proteger o LDAP com TLS (StartTLS) — bônus em 2026.2.** Em produção este item seria obrigatório, porque sem ele as senhas trafegam em texto puro:
-   - criar uma autoridade certificadora (CA) do grupo e um certificado para `ldap.grupo0.bsi-26-2.maceio.lab` com `openssl`;
-   - configurar `olcTLSCACertificateFile`, `olcTLSCertificateFile` e `olcTLSCertificateKeyFile` em `cn=config` com `ldapmodify -Y EXTERNAL -H ldapi:///`;
-   - deixar a chave privada legível só por `root` e pelo grupo `openldap` (`chmod 640`);
-   - copiar **só o certificado da CA** (`ca-grupo0.crt`) para `/usr/local/share/ca-certificates/` das 8 VMs e rodar `sudo update-ca-certificates`.
-
-```bash
-openssl req -x509 -newkey rsa:2048 -nodes -days 365 \
-  -keyout ca-grupo0.key -out ca-grupo0.crt -subj "/CN=CA do Grupo 0 - LSOR"
-openssl req -newkey rsa:2048 -nodes -keyout ldap.key -out ldap.csr \
-  -subj "/CN=ldap.grupo0.bsi-26-2.maceio.lab"
-printf "subjectAltName=DNS:ldap.grupo0.bsi-26-2.maceio.lab\n" > san.ext
-openssl x509 -req -in ldap.csr -CA ca-grupo0.crt -CAkey ca-grupo0.key -CAcreateserial \
-  -days 365 -extfile san.ext -out ldap.crt
-```
-
-**Verificação** (o `-ZZ` obriga o StartTLS; se o certificado estiver errado, o comando falha):
-
-```bash
-ldapsearch -x -ZZ -H ldap://ldap.grupo0.bsi-26-2.maceio.lab \
-  -b dc=grupo0,dc=bsi-26-2,dc=maceio,dc=lab "(objectClass=posixAccount)" uid uidNumber gidNumber
-```
-
-> A chave da CA e as senhas **não vão para o GitHub**. No tutorial, mostre os comandos e os resultados, não o conteúdo das chaves.
-
-### 10. Login unificado nas 8 VMs (SSSD)
-
-Com o LDAP funcionando, **as 8 VMs** passam a buscar usuários, grupos e senhas nele pelo SSSD [11, 12].
+As 9 VMs buscam usuários, grupos e senhas no LDAP pelo SSSD [9, 10]. Passo a passo na [Aula 10](../Aula10.md).
 
 **Requisitos:**
 
-1. Instalar `sssd-ldap`, `libnss-sss`, `libpam-sss` e `ldap-utils`.
-2. Criar `/etc/sssd/sssd.conf` (dono `root`, permissão `600`) e reiniciar o `sssd`:
-
-```ini
-[sssd]
-services = nss, pam
-domains = grupo0
-
-[domain/grupo0]
-id_provider = ldap
-auth_provider = ldap
-ldap_uri = ldap://ldap.grupo0.bsi-26-2.maceio.lab
-ldap_search_base = dc=grupo0,dc=bsi-26-2,dc=maceio,dc=lab
-ldap_id_use_start_tls = true
-ldap_tls_reqcert = demand
-ldap_tls_cacert = /etc/ssl/certs/ca-certificates.crt
-cache_credentials = true
-```
-
-   **Sem TLS (escopo obrigatório de 2026.2):** troque as três linhas `ldap_id_use_start_tls`, `ldap_tls_reqcert` e `ldap_tls_cacert` por `ldap_auth_disable_tls_never_use_in_production = true`. Sem essa linha, o SSSD recusa a senha enviada sem criptografia. Com o bônus do TLS, volte à configuração acima.
-
-3. Criar o home no primeiro login: `sudo pam-auth-update --enable mkhomedir`.
-4. Liberar o login por senha no SSH para as contas do LDAP (`PasswordAuthentication yes` em `/etc/ssh/sshd_config.d/`), se a imagem vier com ele desligado.
-5. Dar `sudo` aos integrantes pelo grupo do LDAP: `sudo visudo -f /etc/sudoers.d/lsor-g0` com a linha `%lsor-g0 ALL=(ALL:ALL) ALL`.
-6. **Manter o `administrador` local** em todas as VMs: é o acesso de emergência se o LDAP cair.
-
-**Verificação (em cada VM):**
-
-```bash
-getent passwd fulano.tal     # uid 10001, vindo do LDAP
-id fulano.tal                # deve listar o grupo lsor-g0
-grep fulano.tal /etc/passwd  # não deve aparecer: a conta não é local
-```
+1. Contas locais dos integrantes, da Etapa 1, removidas em todas as VMs; `administrador` mantido.
+2. SSSD configurado com o LDAP do grupo em todas as VMs.
+3. Home criado no primeiro login (`mkhomedir`).
+4. `sudo` para os integrantes pelo grupo `lsor-g0`.
+5. Login por senha no SSH liberado.
 
 ### 11. Servidor de arquivos — `arquivos` (Samba e SFTP)
 
-O `arquivos` oferece as **mesmas pastas** por dois protocolos: Samba, para abrir no explorador de arquivos, e SFTP, para transferir com um cliente como FileZilla ou WinSCP [13, 14].
-
-**Requisitos:**
-
-1. Pastas e compartilhamentos Samba:
+As **mesmas pastas** por dois protocolos [11, 12]. Passo a passo na [Aula 11](../Aula11.md).
 
 | Compartilhamento | Caminho | Acesso |
 |:--|:--|:--|
-| `publico` | `/srv/arquivos/publico` | Leitura para qualquer usuário, inclusive convidado |
-| `grupo0` | `/srv/arquivos/grupo0` | Leitura e escrita só para o grupo `lsor-g0` (`valid users = @lsor-g0`) |
+| `publico` | `/srv/arquivos/publico` | Leitura para todos, inclusive convidado |
+| `grupo0` | `/srv/arquivos/grupo0` | Leitura e escrita só para o grupo `lsor-g0` |
+| — | `/srv/sftp/novato/arquivos` | SFTP do `novato`, preso a essa pasta e sem terminal |
 
-2. A pasta `grupo0` pertence ao grupo `lsor-g0`, com permissão `2770`; no `smb.conf`, use `force group = lsor-g0`, `create mask = 0660` e `directory mask = 2770`. Valide com `testparm`.
-3. O Samba guarda a senha num formato próprio. Cadastre cada integrante com `sudo smbpasswd -a <login>`, com a mesma senha do LDAP.
-4. **SFTP dos integrantes:** login normal pelo SSH, com acesso às pastas de `/srv/arquivos`. O que um integrante grava por SFTP aparece no Samba, e vice-versa.
-5. **SFTP restrito do `novato`** (grupo `sftpusers`): sem terminal e preso ao próprio diretório. No final do `/etc/ssh/sshd_config`:
-
-```
-Match Group sftpusers
-    ChrootDirectory /srv/sftp/%u
-    ForceCommand internal-sftp
-    AllowTcpForwarding no
-    X11Forwarding no
-```
-
-```bash
-sudo mkdir -p /srv/sftp/novato/arquivos
-sudo chown root:root /srv/sftp/novato && sudo chmod 755 /srv/sftp/novato   # exigência do ChrootDirectory
-sudo chown novato:sftpusers /srv/sftp/novato/arquivos
-sudo sshd -t && sudo systemctl restart ssh
-```
-
-> **Por que outra senha no Samba?** O Samba precisa de um *hash* que o esquema POSIX do LDAP não guarda. Unificar também essa senha exige o esquema do Samba no LDAP (desafio opcional, seção 15).
+- Cada integrante é cadastrado no Samba com `smbpasswd -a`, com a mesma senha do LDAP.
+- O que um integrante grava pelo Samba aparece no SFTP, e vice-versa.
 
 ### 12. Servidor web e banco de dados — `www` e `bd`
 
-A aplicação web fica em **duas camadas**: o Apache com PHP no `www` e o MariaDB no `bd`, conversando pela rede do grupo. O grupo publica a aplicação de exemplo do [site demo](site-demo/README.md), ou outra aplicação PHP com MariaDB que tenha as mesmas integrações [15, 16, 17, 18].
+Aplicação em **duas camadas**: Apache com PHP no `www` e MariaDB no `bd` [13, 14, 15]. O grupo publica o [site demo](site-demo/README.md) ou outra aplicação PHP com MariaDB com as mesmas integrações. Passo a passo na [Aula 11](../Aula11.md).
 
-**Requisitos:**
+1. **`bd`:** MariaDB escutando no IP do `bd`, banco `projeto` criado com o [`criar-banco.sql`](site-demo/bd/criar-banco.sql) e usuário da aplicação que só entra a partir do IP do `www`.
+2. **`www`:** Apache, PHP e `php-mysql`; *virtual host* `www.grupo0.bsi-26-2.maceio.lab` publicando só a pasta `public/`.
+3. **Área `/admin`:** usuário e senha do LDAP, liberada só para o grupo `lsor-g0` ([*virtual host* de exemplo](site-demo/apache/www.grupo0.bsi-26-2.maceio.lab.conf)).
+4. Arquivos do site enviados por SFTP, com a pasta do site pertencendo ao grupo `lsor-g0`.
 
-1. **`bd`:** MariaDB escutando no IP do `bd` (`bind-address`), banco `projeto` criado com o script [`criar-banco.sql`](site-demo/bd/criar-banco.sql) e usuário da aplicação que só entra **a partir do IP do `www`**, com `SELECT`, `INSERT`, `UPDATE` e `DELETE` no banco `projeto`.
-2. **`www`:** Apache, PHP e o módulo `php-mysql`; *virtual host* `www.grupo0.bsi-26-2.maceio.lab` publicando só a pasta `public/` da aplicação.
-3. **SFTP no `www`:** os integrantes enviam os arquivos do site do próprio computador por SFTP. A pasta do site pertence ao grupo `lsor-g0` (permissão `2775`), para qualquer integrante atualizar o site com a conta do LDAP.
-4. **Área restrita no LDAP:** a pasta `/admin` pede usuário e senha do LDAP e só abre para o grupo `lsor-g0`, com o módulo `authnz_ldap` do Apache ([exemplo de *virtual host*](site-demo/apache/www.grupo0.bsi-26-2.maceio.lab.conf)). **Sem TLS:** retire a palavra `STARTTLS` do fim da linha `AuthLDAPURL` e a linha `LDAPTrustedGlobalCert`.
-5. A página inicial mostra a conexão com o `bd`; a página de consulta lista os grupos, integrantes e VMs; a área `/admin` cadastra, edita e remove registros.
+### 13. Testes e apresentação (02/12)
 
-O passo a passo completo, com os comandos, está no [README do site demo](site-demo/README.md).
-
-### 13. E-mail — `mail` (Postfix e Dovecot)
-
-Usaremos **Postfix** para receber e enviar mensagens (SMTP) e **Dovecot** para a leitura (IMAP). São os pacotes padrão do Ubuntu para e-mail, bem documentados e leves: juntos, ocupam poucas dezenas de MB de memória. As caixas postais são dos usuários do LDAP, que o SSSD já torna visíveis para o sistema [19, 20, 21].
-
-O servidor atende **só o domínio do grupo**: não recebe nem envia mensagens para a internet.
-
-**Requisitos:**
-
-1. **Postfix** (*Internet Site* na instalação), em `/etc/postfix/main.cf`:
-   - `myhostname = mail.grupo0.bsi-26-2.maceio.lab` e `mydomain = grupo0.bsi-26-2.maceio.lab`;
-   - `mydestination = $myhostname, $mydomain, localhost`;
-   - `mynetworks = 127.0.0.0/8, 10.10.101.0/28` (as VMs do grupo enviam sem senha);
-   - `home_mailbox = Maildir/`.
-2. **Envio autenticado (porta 587, *submission*)** para os clientes de e-mail no computador do aluno: em `/etc/postfix/master.cf`, ativar o serviço `submission` com STARTTLS obrigatório e autenticação SASL feita pelo Dovecot (`smtpd_sasl_type = dovecot`, `smtpd_sasl_path = private/auth`).
-3. **Dovecot** (`dovecot-imapd`), com IMAP sobre TLS na porta 993, caixas no formato Maildir e autenticação pelo PAM, que usa o SSSD. O Dovecot também oferece ao Postfix o *socket* de autenticação em `/var/spool/postfix/private/auth`. A sintaxe depende da versão (`dovecot --version`): na 2.4, o Maildir é definido com `mail_driver = maildir` e `mail_path = ~/Maildir`; na 2.3, com `mail_location = maildir:~/Maildir` [20].
-4. O home de cada integrante precisa existir no `mail` antes da primeira mensagem: faça um login por SSH com cada um nessa VM (o `mkhomedir` cria o diretório).
-5. O registro **MX** do domínio aponta para `mail` (seção 8).
-
-> **Alternativas.** Um MTA menor, como o OpenSMTPD, tem configuração mais curta, mas menos documentação em português e menos integração com o Dovecot. Uma interface web (Roundcube no `www`) fica como desafio opcional: o teste principal é com um cliente de e-mail no computador do aluno.
-
-### 14. Testes a partir do computador do aluno
-
-Conectado à VPN, o aluno testa cada serviço **do próprio computador** e registra comando e saída (ou captura de tela) no tutorial. Os comandos de terminal valem no Linux, no macOS e no Codespaces; no Windows, use o equivalente indicado.
+Todos os testes são feitos **a partir da VM `cliente`**, ao vivo na apresentação, e registrados no tutorial (comando e saída).
 
 | # | Serviço | Teste | Resultado esperado |
 |:--:|:--|:--|:--|
-| 1 | Gateway | `ping 10.10.101.4` e `traceroute 10.10.101.4` (Windows: `tracert`) | O penúltimo salto é a WAN do `gw` do grupo |
-| 2 | Gateway | De uma VM: `ping 1.1.1.1` e `curl -I https://ubuntu.com` | Saída para a internet pelo NAT do `gw` |
-| 3 | DNS | `dig www.grupo0.bsi-26-2.maceio.lab` (Windows: `Resolve-DnsName`) | IP `.4` do grupo |
-| 4 | DNS | `dig @10.10.101.2 grupo0.bsi-26-2.maceio.lab SOA` e o mesmo com `@10.10.101.3` | Mesmo serial nos dois servidores, com resposta autoritativa (`aa`) |
-| 5 | DNS | `dig -x 10.10.101.8` | `mail.grupo0.bsi-26-2.maceio.lab.` |
-| 6 | DNS | `dig MX grupo0.bsi-26-2.maceio.lab` | `10 mail.grupo0.bsi-26-2.maceio.lab.` |
-| 7 | DNS | Desligar o `ns1` e repetir o teste 3 | O `ns2` responde sozinho |
-| 8 | Login | `ssh fulano.tal@www...`, `ssh fulano.tal@bd...` e `ssh fulano.tal@mail...`, e `sudo -l` em cada uma | Mesma senha do LDAP nas três; `sudo` liberado |
-| 9 | Login | Trocar a senha de um integrante no LDAP (`ldappasswd`) e repetir o teste 8 | A senha nova vale em todas as VMs |
-| 10 | LDAP | `ssh` numa VM e `ldapsearch -x -ZZ ...` (seção 9) | Usuários e grupos listados por StartTLS |
-| 11 | Arquivos | Abrir `\\arquivos.grupo0.bsi-26-2.maceio.lab\grupo0` no Explorer (Linux: `smbclient //arquivos.../grupo0 -U fulano.tal`) e gravar um arquivo | Gravação liberada para integrantes; `novato` negado |
-| 12 | Arquivos | Conectar por SFTP ao `arquivos` (FileZilla, WinSCP ou `sftp fulano.tal@arquivos...`) e baixar o arquivo do teste 11 | O mesmo arquivo aparece nos dois protocolos |
-| 13 | Arquivos | `sftp novato@arquivos...` e depois `ssh novato@arquivos...` | SFTP funciona dentro de `/arquivos`; SSH recusado |
-| 14 | Web | Enviar o site por SFTP para o `www` e abrir `http://www.grupo0.bsi-26-2.maceio.lab/` no navegador | Página com "Conectado ao MariaDB … em bd…" |
-| 15 | Web | Abrir `/admin`, entrar com um integrante, cadastrar, editar e remover um registro de cada tabela | Alterações refletidas no `bd` (`SELECT` no MariaDB); `novato` não entra |
-| 16 | E-mail | Configurar Thunderbird (ou outro cliente) com IMAP 993 e SMTP 587 de dois integrantes e trocar mensagens | Mensagens enviadas e recebidas; `sudo tail /var/log/mail.log` no `mail` mostra `status=sent` |
-| 17 | Firewall | Do computador, `nc -vz 10.10.101.5 22` e `nc -vz 10.10.101.5 3306` (Windows: `Test-NetConnection 10.10.101.5 -Port 3306`) | Porta 22 aberta; 3306 bloqueada pelo `gw` (o banco só atende o `www`) |
+| 1 | Gateway | `ping -c 2 1.1.1.1` | Saída para a internet pelo NAT do `gw` |
+| 2 | DNS | `dig www.grupo0.bsi-26-2.maceio.lab` | IP `.4` do grupo, com a flag `aa` |
+| 3 | DNS | `dig -x 192.168.26.7 +short` | `ldap.grupo0.bsi-26-2.maceio.lab.` |
+| 4 | DNS | `dig @ns1 grupo0.bsi-26-2.maceio.lab SOA +short` e o mesmo com `@ns2` | Mesmo serial nos dois servidores |
+| 5 | DNS | Parar o `named` do `ns1` e repetir o teste 2 | O `ns2` responde sozinho |
+| 6 | LDAP | `ldapsearch -x -LLL -H ldap://ldap -b dc=grupo0,dc=bsi-26-2,dc=maceio,dc=lab uid` | Integrantes e `novato` listados |
+| 7 | Login | `ssh fulano.tal@www`, `ssh fulano.tal@bd` e `ssh fulano.tal@arquivos`, com `id` e `sudo -l` | Mesma senha nas três; grupo `lsor-g0`; `sudo` liberado |
+| 8 | Login | Trocar a senha com `ldappasswd` no `ldap` e repetir o teste 7 | A senha nova vale em todas as VMs |
+| 9 | Arquivos | `smbclient //arquivos/grupo0 -U fulano.tal -c 'put arquivo.txt'` | Gravação liberada para integrantes; `novato` negado |
+| 10 | Arquivos | `sftp fulano.tal@arquivos` e `ls /srv/arquivos/grupo0` | O arquivo do teste 9 aparece pelo SFTP |
+| 11 | Arquivos | `sftp novato@arquivos` e depois `ssh novato@arquivos` | SFTP só na pasta `arquivos`; SSH recusado |
+| 12 | Web | `curl -s http://www.grupo0.bsi-26-2.maceio.lab/` | Página com "Conectado ao MariaDB … em bd…" |
+| 13 | Web | `curl -o /dev/null -w '%{http_code}\n' http://www/admin/`, sem e com `-u fulano.tal` | 401 sem senha; 200 com o integrante |
+| 14 | Web | `lynx http://www/admin/` com a conta de um integrante para cadastrar um registro, e `SELECT` no `bd` | Registro gravado no banco |
 
-Em 2026.2, o teste 16 (e-mail) e o `-ZZ` do teste 10 (TLS) são **bônus**: sem TLS, faça o teste 10 sem o `-ZZ`. Na fase do VirtualBox, os testes por nome são feitos da VM `cliente`, e os do navegador, do Explorer e do SFTP, do PC do laboratório pela WAN do `gw` (seção 3.1).
-
-### 15. Desafios opcionais (bônus)
-
-- **TLS no LDAP** (seção 9, item 5), com o SSSD e o Apache usando StartTLS.
-- **E-mail** com Postfix e Dovecot (seção 13).
-- **HTTPS** no `www`, com certificado assinado pela CA do grupo e redirecionamento de HTTP para HTTPS.
-- **Webmail** (Roundcube) no `www`, lendo as caixas do `mail` por IMAP.
-- **Senha única também no Samba**, com o esquema do Samba no LDAP.
-- **Zona reversa *classless*** (RFC 2317) para o /28 do grupo [7].
-- **Replicação do LDAP** (*syncrepl*) para uma segunda VM.
-- **Backup automático** do banco `projeto` e do LDAP (`mysqldump` e `slapcat`) com `cron`, gravado na pasta do grupo no `arquivos`.
+Cada integrante deve saber explicar pelo menos um serviço.
 
 ---
 
@@ -443,22 +234,23 @@ O grupo documenta tudo no **repositório do projeto do grupo no GitHub**, com o 
 
 1. **Planilha de acompanhamento:** completar as tabelas do grupo com os IPs, os nomes e os usuários do LDAP (login e `uidNumber`). Nunca coloque senhas na planilha.
 2. **Diagrama de topologia** do grupo, adaptado das Figuras 1 e 2.
-3. **Tutorial**, com uma seção por serviço (seções 7 a 13), contendo:
-   - a configuração de hardware de cada VM (memória, CPUs, disco);
-   - os arquivos de configuração alterados (Netplan, regras do `iptables`, zonas do BIND, `sssd.conf`, `smb.conf`, trecho do `sshd_config`, *virtual host* do Apache, `main.cf` e `master.cf` do Postfix, arquivos do Dovecot) — **sem senhas, chaves privadas ou *hashes***;
+3. **Tutorial**, com uma seção por serviço (seções 7 a 12), contendo:
+   - os arquivos de configuração alterados (Netplan, zonas e opções do BIND, `sssd.conf`, `smb.conf`, trecho do `sshd_config`, *virtual host* do Apache) — **sem senhas nem *hashes***;
    - os LDIF usados no diretório, sem o campo `userPassword`;
-   - o código da aplicação web (pode ser o site demo, com as adaptações do grupo), sem o `config.php`;
-   - as evidências dos 17 testes da seção 14;
+   - o código da aplicação web, sem o `config.php`;
+   - as evidências dos 14 testes da seção 13;
    - os problemas encontrados e como foram resolvidos.
-4. **Apresentação final**, com os testes executados ao vivo a partir do computador de um integrante.
+4. **Apresentação final** em **02/12**, com os testes executados ao vivo. O repositório do grupo deve estar atualizado até o início da aula.
 
-**Prazos:** apresentação em **02/12**; o repositório do grupo deve estar atualizado até o início da aula.
+### Bônus (opcional)
+
+Para quem terminar antes: firewall no `gw` com política `DROP` na cadeia `FORWARD`; TLS (StartTLS) no LDAP; e-mail com Postfix e Dovecot na VM7; backup do banco e do LDAP com `cron`.
 
 ---
 
 ## Referências
 
-[1] NETFILTER PROJECT. **iptables(8)** e **iptables-extensions(8)** — alvo `MASQUERADE` e módulos `conntrack` e `multiport`. Disponível em: <https://ipset.netfilter.org/iptables-extensions.man.html>.
+[1] NETFILTER PROJECT. **iptables(8)** e **iptables-extensions(8)** — alvo `MASQUERADE`. Disponível em: <https://ipset.netfilter.org/iptables-extensions.man.html>.
 
 [2] CANONICAL. **Configuring networks**. Ubuntu Server documentation. Disponível em: <https://ubuntu.com/server/docs/configuring-networks>.
 
@@ -468,38 +260,26 @@ O grupo documenta tudo no **repositório do projeto do grupo no GitHub**, com o 
 
 [5] MOCKAPETRIS, P. **RFC 1034 — Domain Names: Concepts and Facilities** e **RFC 1035 — Domain Names: Implementation and Specification**. IETF, 1987. Disponíveis em: <https://www.rfc-editor.org/rfc/rfc1034> e <https://www.rfc-editor.org/rfc/rfc1035>.
 
-[6] ELZ, R.; BUSH, R. **RFC 2181 — Clarifications to the DNS Specification** (seção 10.3). IETF, 1997. Disponível em: <https://www.rfc-editor.org/rfc/rfc2181>.
+[6] CANONICAL. **Install and configure LDAP**. Ubuntu Server documentation. Disponível em: <https://documentation.ubuntu.com/server/how-to/openldap/install-openldap>.
 
-[7] EIDNES, H.; DE GROOT, G.; VIXIE, P. **RFC 2317 — Classless IN-ADDR.ARPA delegation**. IETF, 1998. Disponível em: <https://www.rfc-editor.org/rfc/rfc2317>.
+[7] OPENLDAP FOUNDATION. **OpenLDAP Software Administrator's Guide**. Disponível em: <https://www.openldap.org/doc/admin26/>.
 
-[8] CANONICAL. **Install and configure LDAP**. Ubuntu Server documentation. Disponível em: <https://documentation.ubuntu.com/server/how-to/openldap/install-openldap>.
+[8] HOWARD, L. **RFC 2307 — An Approach for Using LDAP as a Network Information Service**. IETF, 1998. Disponível em: <https://www.rfc-editor.org/rfc/rfc2307>.
 
-[9] OPENLDAP FOUNDATION. **OpenLDAP Software Administrator's Guide**. Disponível em: <https://www.openldap.org/doc/admin26/>.
+[9] CANONICAL. **How to set up SSSD with LDAP**. Ubuntu Server documentation. Disponível em: <https://documentation.ubuntu.com/server/how-to/sssd/with-ldap>.
 
-[10] HOWARD, L. **RFC 2307 — An Approach for Using LDAP as a Network Information Service**. IETF, 1998. Disponível em: <https://www.rfc-editor.org/rfc/rfc2307>.
+[10] SSSD PROJECT. **sssd-ldap(5)** — página de manual. Disponível em: <https://manpages.ubuntu.com/manpages/noble/man5/sssd-ldap.5.html>.
 
-[11] CANONICAL. **How to set up SSSD with LDAP**. Ubuntu Server documentation. Disponível em: <https://documentation.ubuntu.com/server/how-to/sssd/with-ldap>.
+[11] CANONICAL. **Set up Samba as a file server**. Ubuntu Server documentation. Disponível em: <https://ubuntu.com/server/docs/how-to/samba/file-server/>.
 
-[12] SSSD PROJECT. **sssd-ldap(5)** — página de manual. Disponível em: <https://manpages.ubuntu.com/manpages/noble/man5/sssd-ldap.5.html>.
+[12] OPENBSD PROJECT. **sshd_config(5)** — opções `Match`, `ChrootDirectory` e `ForceCommand`. Disponível em: <https://man.openbsd.org/sshd_config>.
 
-[13] CANONICAL. **Set up Samba as a file server**. Ubuntu Server documentation. Disponível em: <https://ubuntu.com/server/docs/how-to/samba/file-server/>.
+[13] APACHE SOFTWARE FOUNDATION. **Apache HTTP Server Version 2.4 Documentation — Virtual Hosts** e **mod_authnz_ldap**. Disponível em: <https://httpd.apache.org/docs/2.4/>.
 
-[14] OPENBSD PROJECT. **sshd_config(5)** — opções `Match`, `ChrootDirectory` e `ForceCommand`. Disponível em: <https://man.openbsd.org/sshd_config>.
+[14] THE PHP GROUP. **PHP Manual — PDO**. Disponível em: <https://www.php.net/manual/en/book.pdo.php>.
 
-[15] APACHE SOFTWARE FOUNDATION. **Apache HTTP Server Version 2.4 Documentation — Virtual Hosts**. Disponível em: <https://httpd.apache.org/docs/2.4/vhosts/>.
+[15] MARIADB FOUNDATION. **MariaDB Knowledge Base — Configuring MariaDB for Remote Client Access**. Disponível em: <https://mariadb.com/kb/en/configuring-mariadb-for-remote-client-access/>.
 
-[16] APACHE SOFTWARE FOUNDATION. **Apache Module mod_authnz_ldap**. Disponível em: <https://httpd.apache.org/docs/2.4/mod/mod_authnz_ldap.html>.
+[16] KUROSE, James F.; ROSS, Keith W. **Redes de Computadores e a Internet**. 8. ed. Pearson, 2022.
 
-[17] THE PHP GROUP. **PHP Manual — PDO**. Disponível em: <https://www.php.net/manual/en/book.pdo.php>.
-
-[18] MARIADB FOUNDATION. **MariaDB Knowledge Base — Configuring MariaDB for Remote Client Access**. Disponível em: <https://mariadb.com/kb/en/configuring-mariadb-for-remote-client-access/>.
-
-[19] CANONICAL. **Mail services** (Postfix e Dovecot). Ubuntu Server documentation. Disponível em: <https://documentation.ubuntu.com/server/how-to/mail-services>.
-
-[20] DOVECOT. **Upgrading Dovecot CE from 2.3 to 2.4**. Disponível em: <https://doc.dovecot.org/main/installation/upgrade/2.3-to-2.4.html>.
-
-[21] KLENSIN, J. **RFC 5321 — Simple Mail Transfer Protocol**; GELLENS, R.; KLENSIN, J. **RFC 6409 — Message Submission for Mail**. IETF, 2008 e 2011. Disponíveis em: <https://www.rfc-editor.org/rfc/rfc5321> e <https://www.rfc-editor.org/rfc/rfc6409>.
-
-[22] KUROSE, James F.; ROSS, Keith W. **Redes de Computadores e a Internet**. 8. ed. Pearson, 2022. (Capítulo 2: DNS e correio eletrônico.)
-
-[23] LACROIX, Jay. **Mastering Ubuntu Server**. 4. ed. Packt Publishing, 2023.
+[17] LACROIX, Jay. **Mastering Ubuntu Server**. 4. ed. Packt Publishing, 2023.

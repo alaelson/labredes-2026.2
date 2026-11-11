@@ -4,7 +4,7 @@ Aplicação PHP de exemplo para o servidor web do Projeto Final. Ela cadastra os
 
 - o **Apache com PHP** roda na VM `www` e o **MariaDB** roda na VM `bd`: cada página atravessa a rede do grupo até o banco;
 - a área **Administrar** (`/admin`) pede usuário e senha do **LDAP** do grupo, verificados pelo próprio Apache;
-- os arquivos do site chegam ao servidor por **SFTP**, a partir do computador do aluno conectado à VPN.
+- os arquivos do site chegam ao servidor por **SFTP**, enviados pelos integrantes com a conta do LDAP.
 
 O grupo pode usar este site como está, adaptá-lo ou escrever outra aplicação PHP com MariaDB, desde que mantenha as três integrações acima e a documente no tutorial.
 
@@ -36,7 +36,7 @@ site-demo/
 
 ## Instalação
 
-Os exemplos usam o Grupo 0 (`www` = `10.10.101.4`, `bd` = `10.10.101.5`). Troque pelos dados do seu grupo.
+Os exemplos usam o Grupo 0 (`www` = `192.168.26.4`, `bd` = `192.168.26.5`). Troque pelos dados do seu grupo.
 
 ### 1. Banco de dados (VM `bd`)
 
@@ -48,7 +48,7 @@ sudo mysql_secure_installation
 O MariaDB só escuta em `127.0.0.1` por padrão. Para o `www` alcançá-lo, em `/etc/mysql/mariadb.conf.d/50-server.cnf`:
 
 ```ini
-bind-address = 10.10.101.5
+bind-address = 192.168.26.5
 ```
 
 Edite o `criar-banco.sql` (IP do `www` e senha do usuário `siteapp`), envie-o por SFTP e carregue:
@@ -56,7 +56,7 @@ Edite o `criar-banco.sql` (IP do `www` e senha do usuário `siteapp`), envie-o p
 ```bash
 sudo systemctl restart mariadb
 sudo mariadb < criar-banco.sql
-sudo ss -tlnp | grep 3306          # deve mostrar 10.10.101.5:3306
+sudo ss -tlnp | grep 3306          # deve mostrar 192.168.26.5:3306
 ```
 
 O usuário `siteapp` só entra **a partir do IP do `www`** e só tem `SELECT`, `INSERT`, `UPDATE` e `DELETE` no banco `projeto`. A aplicação não precisa de mais que isso.
@@ -68,7 +68,7 @@ sudo apt install apache2 php libapache2-mod-php php-mysql mariadb-client
 mariadb -h bd.grupo0.bsi-26-2.maceio.lab -u siteapp -p projeto -e 'SELECT COUNT(*) FROM host'   # teste de rede até o banco
 ```
 
-Envie a pasta `www.grupo0.bsi-26-2.maceio.lab/` por SFTP para o seu home no `www` (FileZilla, WinSCP ou `sftp` no terminal) e instale:
+Envie a pasta `www.grupo0.bsi-26-2.maceio.lab/` por SFTP para o seu home no `www` (por exemplo, `sftp fulano.tal@www` e `put -r`, a partir da VM onde clonou o repositório) e instale:
 
 ```bash
 sudo cp -r ~/www.grupo0.bsi-26-2.maceio.lab /var/www/
@@ -91,7 +91,7 @@ sudo a2dissite 000-default
 sudo apache2ctl configtest && sudo systemctl reload apache2
 ```
 
-### 3. Testes (do computador do aluno, conectado à VPN)
+### 3. Testes (da VM `cliente`)
 
 ```bash
 curl -s http://www.grupo0.bsi-26-2.maceio.lab/ | grep -o 'Conectado[^<]*'
@@ -99,7 +99,7 @@ curl -s -o /dev/null -w '%{http_code}\n' http://www.grupo0.bsi-26-2.maceio.lab/a
 curl -s -o /dev/null -w '%{http_code}\n' -u fulano.tal http://www.grupo0.bsi-26-2.maceio.lab/admin/     # 200
 ```
 
-No navegador, cadastre, edite e remova um registro de cada tabela e confira o resultado no `bd`:
+Com `curl -u fulano.tal` ou com o navegador de texto `lynx` no `cliente`, cadastre, edite e remova um registro de cada tabela e confira o resultado no `bd`:
 
 ```bash
 sudo mariadb projeto -e 'SELECT * FROM grupo; SELECT * FROM aluno; SELECT * FROM host;'
