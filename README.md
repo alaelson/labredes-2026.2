@@ -74,6 +74,15 @@ Os links abaixo apontam para os roteiros detalhados de cada prática realizada e
     *   BIND9 na VM1 como primário da zona `labredes.bsi-26-2.maceio.lab` e da zona reversa `0.0.10.in-addr.arpa`, com recursão só para a rede interna e validação com `named-checkconf` e `named-checkzone`.
     *   OpenLDAP na VM1 com `ou=usuarios`, `ou=grupos`, o grupo POSIX `devs` e os usuários `fulano` e `beltrano`, carregados com `ldapadd`.
     *   Consultas da VM2 ao LDAP pelo nome resolvido no DNS (`ldapsearch`, `ldapwhoami`) e, como desafio, login com a conta do LDAP pelo SSSD.
+10. **[Aula 10: Projeto Final — Gateway com Firewall, DNS do Grupo e Login Unificado](Aula10.md)** (18/11)
+    *   As 9 VMs da Etapa 1 viram `gw`, `ns1`, `ns2`, `www`, `bd`, `arquivos`, `ldap`, `mail` e `cliente`, com o mesmo último octeto do servidor do laboratório; remoção das contas locais dos integrantes.
+    *   Firewall no `gw` com política `DROP` e encaminhamento de portas (DNAT) para o PC do laboratório alcançar o site, o Samba e o SFTP do grupo.
+    *   DNS primário (`ns1`) e secundário (`ns2`) com transferência de zona, zona reversa e registro `MX`; teste com o `ns1` desligado.
+    *   Diretório LDAP do grupo com `lsor-gX`, `sftpusers`, os integrantes e o `novato`, e login unificado com SSSD, `mkhomedir` e `sudo` pelo grupo nas 9 VMs.
+11. **[Aula 11: Projeto Final — Servidor de Arquivos e Aplicação Web em Duas Camadas](Aula11.md)** (25/11)
+    *   Samba com os compartilhamentos `publico` e `grupoX` para o grupo do LDAP, SFTP dos integrantes e SFTP restrito (`chroot`) do `novato`.
+    *   Site demo com Apache e PHP no `www` e MariaDB no `bd`, área `/admin` autenticada no LDAP e envio do site por SFTP.
+    *   Roteiro da apresentação de 02/12.
 
 ---
 

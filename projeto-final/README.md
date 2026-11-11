@@ -20,6 +20,16 @@ O ponto central do projeto é o **login unificado**: cada integrante tem **uma �
 
 O **cliente de testes é o próprio computador do aluno**, conectado à VPN da turma: é dele que o aluno acessa o site no navegador, envia arquivos com um cliente SFTP, abre a pasta compartilhada e lê o e-mail.
 
+> **Escopo e prazos de 2026.2**
+>
+> | | |
+> |:--|:--|
+> | **Obrigatório** | Gateway com NAT e firewall, DNS primário e secundário, LDAP com login unificado (SSSD) nas VMs, servidor de arquivos (Samba e SFTP), servidor web e banco de dados |
+> | **Bônus** (seção 15) | **TLS no LDAP** (seção 9, item 5) e **e-mail** (seção 13). Sem TLS, use as variantes "sem TLS" das seções 10 e 12 |
+> | **Onde** | O projeto **começa no VirtualBox do laboratório** (seção 3.1), com os mesmos últimos octetos do servidor. Se o servidor do laboratório ficar pronto antes de 02/12, os grupos migram e apresentam lá |
+> | **Aulas de apoio** | [Aula 09](../Aula9.md) (11/11): DNS e LDAP · [Aula 10](../Aula10.md) (18/11): gateway, DNS do grupo e login unificado · [Aula 11](../Aula11.md) (25/11): arquivos e web |
+> | **Apresentação** | **02/12**, com os testes da seção 14 executados ao vivo |
+
 ### 2. Objetivos
 
 Ao final do projeto, o grupo deve ser capaz de:
@@ -49,6 +59,29 @@ As VMs são entregues **ligadas, com o hostname, o IP, a máscara, a rota padrã
 - Placas de rede: no servidor, as placas aparecem como **`ens18`** (e `ens19` no `gw`), e não como `enp0s3`/`enp0s8` do VirtualBox. Confira com `ip -br addr` e use esses nomes no Netplan e nas regras do firewall.
 - Revise o arquivo `/etc/netplan/50-cloud-init.yaml` de cada VM e registre-o no tutorial, como na Etapa 1.
 - Antes de cada serviço, **tire um *snapshot*** da VM pelo painel do servidor. Se a configuração quebrar, volte ao *snapshot*.
+
+#### 3.1 Começo no VirtualBox do laboratório
+
+Enquanto o servidor não estiver pronto, cada grupo **reaproveita as 9 VMs da Etapa 1**, nos mesmos PCs e com as placas em modo Bridge. A distribuição dos serviços mantém **o mesmo último octeto** da seção 5: na migração para o servidor, muda só o prefixo da rede (`192.168.26.x` → `10.10.101.x`) e o nome das placas (`enp0s3`/`enp0s8` → `ens18`/`ens19`).
+
+| VM da Etapa 1 | IP (Grupo X) | Vira | Hostname novo (Grupo 0) |
+|:--|:--|:--|:--|
+| Gateway | WAN `172.20.23.x` · LAN `16·X + 1` | `gw` | `gw.grupo0.bsi-26-2.maceio.lab` |
+| VM1 | `16·X + 2` | `ns1` | `ns1.grupo0.bsi-26-2.maceio.lab` |
+| VM2 | `16·X + 3` | `ns2` | `ns2.grupo0.bsi-26-2.maceio.lab` |
+| VM3 | `16·X + 4` | `www` | `www.grupo0.bsi-26-2.maceio.lab` |
+| VM4 | `16·X + 5` | `bd` | `bd.grupo0.bsi-26-2.maceio.lab` |
+| VM5 | `16·X + 6` | `arquivos` | `arquivos.grupo0.bsi-26-2.maceio.lab` |
+| VM6 | `16·X + 7` | `ldap` | `ldap.grupo0.bsi-26-2.maceio.lab` |
+| VM7 | `16·X + 8` | `mail` (bônus) | `mail.grupo0.bsi-26-2.maceio.lab` |
+| VM8 | `16·X + 9` | `cliente` (testes dentro da rede do grupo) | `cliente.grupo0.bsi-26-2.maceio.lab` |
+
+Diferenças em relação ao servidor, que valem só nesta fase:
+
+- **Rede do grupo:** `192.168.26.(16·X)/28` da Etapa 1, com o gateway em `16·X + 1`. Onde o enunciado diz `10.10.101`, use `192.168.26`.
+- **Contas locais dos integrantes:** as contas criadas na Etapa 1 precisam ser **removidas** (mantendo o `administrador`), senão o Linux usa a conta local e ignora a do LDAP. O passo a passo está na [Aula 10](../Aula10.md).
+- **Acesso a partir do PC do laboratório:** sem VPN, o PC alcança a rede do grupo pelo **encaminhamento de portas (DNAT) no `gw`**: `http://<WAN do gw>/` abre o site, `\\<WAN do gw>\grupoX` abre a pasta e `ssh -p 2206 fulano.tal@<WAN do gw>` entra no `arquivos`. As regras estão na [Aula 10](../Aula10.md).
+- **Testes por nome:** feitos a partir da VM `cliente` (VM8), que usa o DNS do grupo.
 
 ### 4. Topologia
 
@@ -231,7 +264,7 @@ loginShell: /bin/bash
 userPassword: {SSHA}cole-aqui-a-saida-do-slappasswd
 ```
 
-5. **Proteger o LDAP com TLS (StartTLS).** O SSSD só envia senhas por conexão criptografada, então este item é obrigatório:
+5. **Proteger o LDAP com TLS (StartTLS) — bônus em 2026.2.** Em produção este item seria obrigatório, porque sem ele as senhas trafegam em texto puro:
    - criar uma autoridade certificadora (CA) do grupo e um certificado para `ldap.grupo0.bsi-26-2.maceio.lab` com `openssl`;
    - configurar `olcTLSCACertificateFile`, `olcTLSCertificateFile` e `olcTLSCertificateKeyFile` em `cn=config` com `ldapmodify -Y EXTERNAL -H ldapi:///`;
    - deixar a chave privada legível só por `root` e pelo grupo `openldap` (`chmod 640`);
@@ -280,6 +313,8 @@ ldap_tls_reqcert = demand
 ldap_tls_cacert = /etc/ssl/certs/ca-certificates.crt
 cache_credentials = true
 ```
+
+   **Sem TLS (escopo obrigatório de 2026.2):** troque as três linhas `ldap_id_use_start_tls`, `ldap_tls_reqcert` e `ldap_tls_cacert` por `ldap_auth_disable_tls_never_use_in_production = true`. Sem essa linha, o SSSD recusa a senha enviada sem criptografia. Com o bônus do TLS, volte à configuração acima.
 
 3. Criar o home no primeiro login: `sudo pam-auth-update --enable mkhomedir`.
 4. Liberar o login por senha no SSH para as contas do LDAP (`PasswordAuthentication yes` em `/etc/ssh/sshd_config.d/`), se a imagem vier com ele desligado.
@@ -338,7 +373,7 @@ A aplicação web fica em **duas camadas**: o Apache com PHP no `www` e o MariaD
 1. **`bd`:** MariaDB escutando no IP do `bd` (`bind-address`), banco `projeto` criado com o script [`criar-banco.sql`](site-demo/bd/criar-banco.sql) e usuário da aplicação que só entra **a partir do IP do `www`**, com `SELECT`, `INSERT`, `UPDATE` e `DELETE` no banco `projeto`.
 2. **`www`:** Apache, PHP e o módulo `php-mysql`; *virtual host* `www.grupo0.bsi-26-2.maceio.lab` publicando só a pasta `public/` da aplicação.
 3. **SFTP no `www`:** os integrantes enviam os arquivos do site do próprio computador por SFTP. A pasta do site pertence ao grupo `lsor-g0` (permissão `2775`), para qualquer integrante atualizar o site com a conta do LDAP.
-4. **Área restrita no LDAP:** a pasta `/admin` pede usuário e senha do LDAP e só abre para o grupo `lsor-g0`, com o módulo `authnz_ldap` do Apache ([exemplo de *virtual host*](site-demo/apache/www.grupo0.bsi-26-2.maceio.lab.conf)).
+4. **Área restrita no LDAP:** a pasta `/admin` pede usuário e senha do LDAP e só abre para o grupo `lsor-g0`, com o módulo `authnz_ldap` do Apache ([exemplo de *virtual host*](site-demo/apache/www.grupo0.bsi-26-2.maceio.lab.conf)). **Sem TLS:** retire a palavra `STARTTLS` do fim da linha `AuthLDAPURL` e a linha `LDAPTrustedGlobalCert`.
 5. A página inicial mostra a conexão com o `bd`; a página de consulta lista os grupos, integrantes e VMs; a área `/admin` cadastra, edita e remove registros.
 
 O passo a passo completo, com os comandos, está no [README do site demo](site-demo/README.md).
@@ -387,8 +422,12 @@ Conectado à VPN, o aluno testa cada serviço **do próprio computador** e regis
 | 16 | E-mail | Configurar Thunderbird (ou outro cliente) com IMAP 993 e SMTP 587 de dois integrantes e trocar mensagens | Mensagens enviadas e recebidas; `sudo tail /var/log/mail.log` no `mail` mostra `status=sent` |
 | 17 | Firewall | Do computador, `nc -vz 10.10.101.5 22` e `nc -vz 10.10.101.5 3306` (Windows: `Test-NetConnection 10.10.101.5 -Port 3306`) | Porta 22 aberta; 3306 bloqueada pelo `gw` (o banco só atende o `www`) |
 
+Em 2026.2, o teste 16 (e-mail) e o `-ZZ` do teste 10 (TLS) são **bônus**: sem TLS, faça o teste 10 sem o `-ZZ`. Na fase do VirtualBox, os testes por nome são feitos da VM `cliente`, e os do navegador, do Explorer e do SFTP, do PC do laboratório pela WAN do `gw` (seção 3.1).
+
 ### 15. Desafios opcionais (bônus)
 
+- **TLS no LDAP** (seção 9, item 5), com o SSSD e o Apache usando StartTLS.
+- **E-mail** com Postfix e Dovecot (seção 13).
 - **HTTPS** no `www`, com certificado assinado pela CA do grupo e redirecionamento de HTTP para HTTPS.
 - **Webmail** (Roundcube) no `www`, lendo as caixas do `mail` por IMAP.
 - **Senha única também no Samba**, com o esquema do Samba no LDAP.
@@ -413,7 +452,7 @@ O grupo documenta tudo no **repositório do projeto do grupo no GitHub**, com o 
    - os problemas encontrados e como foram resolvidos.
 4. **Apresentação final**, com os testes executados ao vivo a partir do computador de um integrante.
 
-**Prazos:** data a definir.
+**Prazos:** apresentação em **02/12**; o repositório do grupo deve estar atualizado até o início da aula.
 
 ---
 
