@@ -32,13 +32,13 @@ flowchart TD
     R[". (raiz)"] --> LAB["lab"]
     LAB --> MZ["maceio.lab"]
     MZ --> T["bsi-26-2.maceio.lab"]
-    T --> A9["aula9.bsi-26-2.maceio.lab<br/>(zona desta aula)"]
+    T --> A9["labredes.bsi-26-2.maceio.lab<br/>(zona desta aula: o laboratório da turma)"]
     T --> G0["grupo0.bsi-26-2.maceio.lab<br/>(zona do Projeto Final)"]
 ```
 
 | Papel | O que faz | Nesta aula |
 |:--|:--|:--|
-| **Autoritativo** | Responde com certeza pelos nomes da zona que hospeda | BIND9 na VM1, dono de `aula9.bsi-26-2.maceio.lab` |
+| **Autoritativo** | Responde com certeza pelos nomes da zona que hospeda | BIND9 na VM1, dono de `labredes.bsi-26-2.maceio.lab` |
 | **Recursivo** | Busca a resposta em outros servidores para quem perguntou e guarda em *cache* | O mesmo BIND9, só para a rede interna |
 | **Encaminhador** (*forwarder*) | Recebe as consultas que o recursivo não sabe responder | DNS do laboratório, `172.20.20.1` |
 | **Primário / secundário** | O primário guarda o arquivo da zona; o secundário copia a zona (transferência) | Só o primário hoje; no projeto, `ns1` e `ns2` |
@@ -48,7 +48,7 @@ flowchart TD
 | Registro | Significado | Exemplo |
 |:--|:--|:--|
 | `SOA` | Início da zona: servidor principal, contato e **serial** | `2026111101` (formato `AAAAMMDDnn`) |
-| `NS` | Servidor de nomes da zona | `ns1.aula9.bsi-26-2.maceio.lab.` |
+| `NS` | Servidor de nomes da zona | `ns1.labredes.bsi-26-2.maceio.lab.` |
 | `A` | Nome → endereço IPv4 | `ldap → 10.0.0.1` |
 | `CNAME` | Apelido de outro nome | `www → gw` |
 | `PTR` | Endereço → nome (zona reversa) | `10.0.0.2 → cliente` |
@@ -56,7 +56,7 @@ flowchart TD
 
 Três regras que mais derrubam zonas:
 
-1. **Todo nome completo termina com ponto** (`gw.aula9.bsi-26-2.maceio.lab.`). Sem o ponto, o BIND acrescenta o nome da zona ao final.
+1. **Todo nome completo termina com ponto** (`gw.labredes.bsi-26-2.maceio.lab.`). Sem o ponto, o BIND acrescenta o nome da zona ao final.
 2. **O serial do SOA precisa aumentar** a cada alteração; senão, os secundários não copiam a zona nova.
 3. `NS` e `MX` apontam para nomes com registro `A` próprio, **nunca para um CNAME** [4].
 
@@ -66,7 +66,7 @@ O LDAP é um protocolo de acesso a um **diretório**: um banco de dados organiza
 
 ```mermaid
 flowchart TD
-    B["dc=aula9,dc=bsi-26-2,dc=maceio,dc=lab<br/>(base, vem do nome DNS)"] --> U["ou=usuarios"]
+    B["dc=labredes,dc=bsi-26-2,dc=maceio,dc=lab<br/>(base, vem do nome DNS)"] --> U["ou=usuarios"]
     B --> G["ou=grupos"]
     U --> F["uid=fulano"]
     U --> BE["uid=beltrano"]
@@ -75,12 +75,14 @@ flowchart TD
 
 | Termo | Significado | Exemplo |
 |:--|:--|:--|
-| **DN** (*Distinguished Name*) | Endereço completo e único de uma entrada, da folha até a base | `uid=fulano,ou=usuarios,dc=aula9,dc=bsi-26-2,dc=maceio,dc=lab` |
-| **Base** | Raiz da árvore; por convenção, o domínio DNS escrito em `dc=` | `dc=aula9,dc=bsi-26-2,dc=maceio,dc=lab` |
+| **DN** (*Distinguished Name*) | Endereço completo e único de uma entrada, da folha até a base | `uid=fulano,ou=usuarios,dc=labredes,dc=bsi-26-2,dc=maceio,dc=lab` |
+| **Base** | Raiz da árvore; por convenção, o domínio DNS escrito em `dc=` | `dc=labredes,dc=bsi-26-2,dc=maceio,dc=lab` |
 | **OU** | Pasta que organiza entradas | `ou=usuarios`, `ou=grupos` |
 | **objectClass** | Define quais atributos a entrada pode ou deve ter | `posixAccount` exige `uidNumber`, `gidNumber`, `homeDirectory` |
 | **LDIF** | Formato de texto para criar ou alterar entradas | arquivo `base.ldif` da seção 4 |
 | **Bind** | Autenticação no LDAP com um DN e uma senha | `ldapwhoami -D uid=fulano,...` |
+
+**De onde vem a base.** Por convenção, cada parte do nome DNS vira um componente `dc=` (*domain component*) [13]: o domínio `labredes.bsi-26-2.maceio.lab` gera a base `dc=labredes,dc=bsi-26-2,dc=maceio,dc=lab`. No Projeto Final a regra é a mesma, só troca o primeiro nome: `grupo0.bsi-26-2.maceio.lab` gera `dc=grupo0,dc=bsi-26-2,dc=maceio,dc=lab`. Note que **DN não é um componente**: é o nome completo de uma entrada, formado por componentes como `dc=`, `ou=`, `cn=` e `uid=`.
 
 **Login unificado.** Quando o Linux procura um usuário, ele consulta o NSS (identidade) e o PAM (senha). Com o SSSD, essas consultas vão ao LDAP, e a mesma conta passa a valer em todas as máquinas [9]:
 
@@ -130,7 +132,7 @@ O que esse diretório real ensina:
 
 Use as duas VMs das Aulas 07 e 08: a VM1 (`vm1-gateway`, com NAT funcionando) e a VM2 (`vm2-cliente`, na rede interna `10.0.0.0/24`). A VM1 vai ser o servidor DNS **e** o servidor LDAP.
 
-**Tabela 1:** Nomes da zona `aula9.bsi-26-2.maceio.lab`
+**Tabela 1:** Nomes da zona `labredes.bsi-26-2.maceio.lab`
 
 | Nome | Tipo | Valor | Observação |
 |:--|:--|:--|:--|
@@ -190,9 +192,9 @@ options {
 Acrescente ao final de `/etc/bind/named.conf.local`:
 
 ```
-zone "aula9.bsi-26-2.maceio.lab" {
+zone "labredes.bsi-26-2.maceio.lab" {
     type primary;
-    file "/etc/bind/db.aula9";
+    file "/etc/bind/db.labredes";
 };
 
 zone "0.0.10.in-addr.arpa" {
@@ -206,19 +208,19 @@ A zona reversa se escreve com os octetos da rede **ao contrário**: a rede `10.0
 ### 2.5 Arquivo da zona direta (VM1)
 
 ```bash
-sudo nano /etc/bind/db.aula9
+sudo nano /etc/bind/db.labredes
 ```
 
 ```
 $TTL 3600
-@       IN  SOA ns1.aula9.bsi-26-2.maceio.lab. administrador.aula9.bsi-26-2.maceio.lab. (
+@       IN  SOA ns1.labredes.bsi-26-2.maceio.lab. administrador.labredes.bsi-26-2.maceio.lab. (
                 2026111101  ; serial (AAAAMMDDnn) - aumente a cada alteração
                 3600        ; refresh
                 900         ; retry
                 604800      ; expire
                 300 )       ; TTL das respostas negativas
 
-        IN  NS      ns1.aula9.bsi-26-2.maceio.lab.
+        IN  NS      ns1.labredes.bsi-26-2.maceio.lab.
 
 ns1     IN  A       10.0.0.1
 gw      IN  A       10.0.0.1
@@ -227,7 +229,7 @@ cliente IN  A       10.0.0.2
 www     IN  CNAME   gw
 ```
 
-O segundo campo do SOA é o e-mail do responsável com o `@` trocado por ponto: `administrador.aula9...` significa `administrador@aula9...`.
+O segundo campo do SOA é o e-mail do responsável com o `@` trocado por ponto: `administrador.labredes...` significa `administrador@labredes...`.
 
 ### 2.6 Arquivo da zona reversa (VM1)
 
@@ -237,13 +239,13 @@ sudo nano /etc/bind/db.10.0.0
 
 ```
 $TTL 3600
-@       IN  SOA ns1.aula9.bsi-26-2.maceio.lab. administrador.aula9.bsi-26-2.maceio.lab. (
+@       IN  SOA ns1.labredes.bsi-26-2.maceio.lab. administrador.labredes.bsi-26-2.maceio.lab. (
                 2026111101 3600 900 604800 300 )
 
-        IN  NS      ns1.aula9.bsi-26-2.maceio.lab.
+        IN  NS      ns1.labredes.bsi-26-2.maceio.lab.
 
-1       IN  PTR     gw.aula9.bsi-26-2.maceio.lab.
-2       IN  PTR     cliente.aula9.bsi-26-2.maceio.lab.
+1       IN  PTR     gw.labredes.bsi-26-2.maceio.lab.
+2       IN  PTR     cliente.labredes.bsi-26-2.maceio.lab.
 ```
 
 ### 2.7 Validar e carregar (VM1)
@@ -252,7 +254,7 @@ $TTL 3600
 
 ```bash
 sudo named-checkconf
-sudo named-checkzone aula9.bsi-26-2.maceio.lab /etc/bind/db.aula9
+sudo named-checkzone labredes.bsi-26-2.maceio.lab /etc/bind/db.labredes
 sudo named-checkzone 0.0.10.in-addr.arpa /etc/bind/db.10.0.0
 sudo systemctl restart named
 sudo journalctl -u named --no-pager -n 20     # deve mostrar "zone ... loaded serial 2026111101"
@@ -261,8 +263,8 @@ sudo journalctl -u named --no-pager -n 20     # deve mostrar "zone ... loaded se
 Teste no próprio servidor:
 
 ```bash
-dig @127.0.0.1 ldap.aula9.bsi-26-2.maceio.lab +short    # 10.0.0.1
-dig @127.0.0.1 -x 10.0.0.2 +short                       # cliente.aula9.bsi-26-2.maceio.lab.
+dig @127.0.0.1 ldap.labredes.bsi-26-2.maceio.lab +short    # 10.0.0.1
+dig @127.0.0.1 -x 10.0.0.2 +short                       # cliente.labredes.bsi-26-2.maceio.lab.
 ```
 
 ---
@@ -275,7 +277,7 @@ No arquivo YAML de `/etc/netplan/` da VM2 (o mesmo da Aula 08), troque o bloco `
 
 ```yaml
       nameservers:
-        search: [aula9.bsi-26-2.maceio.lab]
+        search: [labredes.bsi-26-2.maceio.lab]
         addresses: [10.0.0.1]
 ```
 
@@ -287,18 +289,18 @@ resolvectl status enp0s3        # deve mostrar 10.0.0.1 e o domínio de busca
 ### 3.2 Consultas
 
 ```bash
-dig gw.aula9.bsi-26-2.maceio.lab            # veja as seções QUESTION e ANSWER e a flag "aa"
+dig gw.labredes.bsi-26-2.maceio.lab            # veja as seções QUESTION e ANSWER e a flag "aa"
 dig +short ldap                             # nome curto: o domínio de busca completa o nome
-dig +short www.aula9.bsi-26-2.maceio.lab    # CNAME para gw e depois o A
+dig +short www.labredes.bsi-26-2.maceio.lab    # CNAME para gw e depois o A
 dig -x 10.0.0.2 +short                      # zona reversa
-dig aula9.bsi-26-2.maceio.lab SOA +short    # confira o serial
+dig labredes.bsi-26-2.maceio.lab SOA +short    # confira o serial
 dig google.com +short                       # recursão: a VM1 pergunta ao encaminhador
 ping -c 2 gw
 ```
 
 | O que observar | Por quê |
 |:--|:--|
-| Flag **`aa`** na resposta de `gw.aula9...` | A VM1 é **autoritativa** pela zona |
+| Flag **`aa`** na resposta de `gw.labredes...` | A VM1 é **autoritativa** pela zona |
 | `google.com` responde **sem** a flag `aa` | A resposta veio da recursão, não da zona local |
 | `ping gw` funciona com o nome curto | O domínio de busca do Netplan completou o nome |
 
@@ -320,13 +322,13 @@ Responda às perguntas do assistente [6]:
 | Pergunta | Resposta |
 |:--|:--|
 | *Omit OpenLDAP server configuration?* | **No** |
-| *DNS domain name* | `aula9.bsi-26-2.maceio.lab` |
-| *Organization name* | `LSOR Aula 9` |
+| *DNS domain name* | `labredes.bsi-26-2.maceio.lab` |
+| *Organization name* | `LabRedes BSI 2026.2` |
 | *Administrator password* | a senha de laboratório (duas vezes) |
 | *Remove the database when slapd is purged?* | **No** |
 | *Move old database?* | **Yes** |
 
-O assistente transforma o domínio na base `dc=aula9,dc=bsi-26-2,dc=maceio,dc=lab` e cria o administrador `cn=admin,dc=aula9,dc=bsi-26-2,dc=maceio,dc=lab`. Confira:
+O assistente transforma o domínio na base `dc=labredes,dc=bsi-26-2,dc=maceio,dc=lab` e cria o administrador `cn=admin,dc=labredes,dc=bsi-26-2,dc=maceio,dc=lab`. Confira:
 
 ```bash
 sudo slapcat | head -20
@@ -350,43 +352,43 @@ nano ~/base.ldif
 ```
 
 ```ldif
-dn: ou=usuarios,dc=aula9,dc=bsi-26-2,dc=maceio,dc=lab
+dn: ou=usuarios,dc=labredes,dc=bsi-26-2,dc=maceio,dc=lab
 objectClass: organizationalUnit
 ou: usuarios
 
-dn: ou=grupos,dc=aula9,dc=bsi-26-2,dc=maceio,dc=lab
+dn: ou=grupos,dc=labredes,dc=bsi-26-2,dc=maceio,dc=lab
 objectClass: organizationalUnit
 ou: grupos
 
-dn: cn=devs,ou=grupos,dc=aula9,dc=bsi-26-2,dc=maceio,dc=lab
+dn: cn=devs,ou=grupos,dc=labredes,dc=bsi-26-2,dc=maceio,dc=lab
 objectClass: posixGroup
 cn: devs
 gidNumber: 10000
 memberUid: fulano
 memberUid: beltrano
 
-dn: uid=fulano,ou=usuarios,dc=aula9,dc=bsi-26-2,dc=maceio,dc=lab
+dn: uid=fulano,ou=usuarios,dc=labredes,dc=bsi-26-2,dc=maceio,dc=lab
 objectClass: inetOrgPerson
 objectClass: posixAccount
 objectClass: shadowAccount
 uid: fulano
 cn: Fulano de Tal
 sn: Tal
-mail: fulano@aula9.bsi-26-2.maceio.lab
+mail: fulano@labredes.bsi-26-2.maceio.lab
 uidNumber: 10001
 gidNumber: 10000
 homeDirectory: /home/fulano
 loginShell: /bin/bash
 userPassword: {SSHA}cole-aqui-o-hash-de-fulano
 
-dn: uid=beltrano,ou=usuarios,dc=aula9,dc=bsi-26-2,dc=maceio,dc=lab
+dn: uid=beltrano,ou=usuarios,dc=labredes,dc=bsi-26-2,dc=maceio,dc=lab
 objectClass: inetOrgPerson
 objectClass: posixAccount
 objectClass: shadowAccount
 uid: beltrano
 cn: Beltrano da Silva
 sn: Silva
-mail: beltrano@aula9.bsi-26-2.maceio.lab
+mail: beltrano@labredes.bsi-26-2.maceio.lab
 uidNumber: 10002
 gidNumber: 10000
 homeDirectory: /home/beltrano
@@ -399,7 +401,7 @@ Os `uidNumber` começam em **10001** para não colidir com as contas locais, que
 Carregue o arquivo autenticando como administrador do diretório:
 
 ```bash
-ldapadd -x -D cn=admin,dc=aula9,dc=bsi-26-2,dc=maceio,dc=lab -W -f ~/base.ldif
+ldapadd -x -D cn=admin,dc=labredes,dc=bsi-26-2,dc=maceio,dc=lab -W -f ~/base.ldif
 ```
 
 Cada entrada criada aparece como `adding new entry "..."`. Se um erro interromper o carregamento, corrija o LDIF e rode de novo **só com as entradas que faltaram** (as já criadas dão erro `Already exists`).
@@ -408,11 +410,11 @@ Cada entrada criada aparece como `adding new entry "..."`. Se um erro interrompe
 
 ## 5. Testes do LDAP a partir da VM2 — pelo nome do DNS
 
-Agora a VM2 encontra o LDAP pelo nome `ldap.aula9.bsi-26-2.maceio.lab`, resolvido pelo DNS da seção 2. Para encurtar os comandos, guarde a base numa variável:
+Agora a VM2 encontra o LDAP pelo nome `ldap.labredes.bsi-26-2.maceio.lab`, resolvido pelo DNS da seção 2. Para encurtar os comandos, guarde a base numa variável:
 
 ```bash
-BASE="dc=aula9,dc=bsi-26-2,dc=maceio,dc=lab"
-URI="ldap://ldap.aula9.bsi-26-2.maceio.lab"
+BASE="dc=labredes,dc=bsi-26-2,dc=maceio,dc=lab"
+URI="ldap://ldap.labredes.bsi-26-2.maceio.lab"
 ```
 
 ```bash
@@ -441,14 +443,14 @@ Repare que a consulta anônima **não mostra** o atributo `userPassword`: o slap
 **Sua vez:** crie o usuário `cicrano` (`uidNumber 10003`) num arquivo `cicrano.ldif`, inclua-o no grupo `devs` e mostre as duas mudanças com `ldapsearch`. Para acrescentar um membro a um grupo que já existe, use `ldapmodify` com o LDIF abaixo, salvo como `~/devs-cicrano.ldif`:
 
 ```ldif
-dn: cn=devs,ou=grupos,dc=aula9,dc=bsi-26-2,dc=maceio,dc=lab
+dn: cn=devs,ou=grupos,dc=labredes,dc=bsi-26-2,dc=maceio,dc=lab
 changetype: modify
 add: memberUid
 memberUid: cicrano
 ```
 
 ```bash
-ldapmodify -x -D cn=admin,dc=aula9,dc=bsi-26-2,dc=maceio,dc=lab -W -f ~/devs-cicrano.ldif
+ldapmodify -x -D cn=admin,dc=labredes,dc=bsi-26-2,dc=maceio,dc=lab -W -f ~/devs-cicrano.ldif
 ```
 
 ### 5.1 Problemas comuns
@@ -457,7 +459,7 @@ ldapmodify -x -D cn=admin,dc=aula9,dc=bsi-26-2,dc=maceio,dc=lab -W -f ~/devs-cic
 |:--|:--|:--|
 | `dig` responde `status: REFUSED` | A rede da VM2 não está na `acl rede-interna` | Confira a ACL e o IP da VM2 |
 | `dig` responde `SERVFAIL` para o domínio | Zona não carregou | `sudo journalctl -u named -n 30` e `named-checkzone` |
-| Nome resolve para `gw.aula9...aula9...` | Faltou o ponto final no arquivo da zona | Acrescente o ponto, aumente o serial e recarregue |
+| Nome resolve para `gw.labredes...labredes...` | Faltou o ponto final no arquivo da zona | Acrescente o ponto, aumente o serial e recarregue |
 | Alteração na zona não aparece | Serial não foi aumentado ou faltou `rndc reload` | Aumente o serial e rode `sudo rndc reload` |
 | `ldapsearch`: `Can't contact LDAP server (-1)` | Nome não resolve ou slapd parado | `dig +short ldap` e `systemctl status slapd` |
 | `ldapadd`: `Invalid credentials (49)` | DN do administrador ou senha errados | O DN é `cn=admin,` seguido da base |
@@ -478,13 +480,13 @@ sudo nano /etc/sssd/sssd.conf
 ```ini
 [sssd]
 services = nss, pam
-domains = aula9
+domains = labredes
 
-[domain/aula9]
+[domain/labredes]
 id_provider = ldap
 auth_provider = ldap
-ldap_uri = ldap://ldap.aula9.bsi-26-2.maceio.lab
-ldap_search_base = dc=aula9,dc=bsi-26-2,dc=maceio,dc=lab
+ldap_uri = ldap://ldap.labredes.bsi-26-2.maceio.lab
+ldap_search_base = dc=labredes,dc=bsi-26-2,dc=maceio,dc=lab
 cache_credentials = true
 # SOMENTE NESTA AULA: aceita senha sem criptografia. No Projeto Final use StartTLS.
 ldap_auth_disable_tls_never_use_in_production = true
@@ -512,7 +514,7 @@ Sem a opção `ldap_auth_disable_tls_never_use_in_production`, o SSSD recusa a s
 | DNS e LDAP na mesma VM | VMs separadas: `ns1`, `ns2` e `ldap` |
 | Só servidor primário | Primário (`ns1`) e secundário (`ns2`), com `allow-transfer` e `also-notify` |
 | Rede interna `10.0.0.0/24`, placas `enp0s3`/`enp0s8` | Rede do grupo `10.10.101.(16·X)/28`, placas `ens18`/`ens19` |
-| Domínio `aula9.bsi-26-2.maceio.lab` | Domínio `grupoX.bsi-26-2.maceio.lab` |
+| Domínio `labredes.bsi-26-2.maceio.lab` | Domínio `grupoX.bsi-26-2.maceio.lab` |
 | Recursão para a rede interna | Recursão só para o grupo; consultas também da VPN da turma |
 | LDAP em texto puro (porta 389) | **StartTLS obrigatório**, com CA do grupo |
 | Login no LDAP só na VM2 (desafio) | Login unificado nas **8 VMs**, com `sudo` pelo grupo `lsor-gX` |
@@ -527,8 +529,8 @@ Sem a opção `ldap_auth_disable_tls_never_use_in_production`, o SSSD recusa a s
 Documente a aula no seu repositório pessoal, seguindo o **Modelo de 7 Passos** do [README](README.md). Inclua como evidência, com o comando e o resultado de cada um:
 
 1. `named-checkconf` e os dois `named-checkzone` sem erros.
-2. Os arquivos `db.aula9` e `db.10.0.0` (com `cat`).
-3. Na VM2: `resolvectl status`, `dig gw.aula9...` mostrando a flag `aa`, `dig -x 10.0.0.2` e `dig google.com`.
+2. Os arquivos `db.labredes` e `db.10.0.0` (com `cat`).
+3. Na VM2: `resolvectl status`, `dig gw.labredes...` mostrando a flag `aa`, `dig -x 10.0.0.2` e `dig google.com`.
 4. O registro `arquivos` acrescentado, com o serial novo.
 5. `sudo slapcat` resumido (só os DNs: `sudo slapcat | grep ^dn`).
 6. Na VM2: os quatro testes da seção 5 e as consultas mostrando o usuário `cicrano` no grupo `devs`.
@@ -563,3 +565,5 @@ Documente a aula no seu repositório pessoal, seguindo o **Modelo de 7 Passos** 
 [11] KUROSE, James F.; ROSS, Keith W. **Redes de Computadores e a Internet**. 8. ed. Pearson, 2022. (Capítulo 2: DNS.)
 
 [12] CHESHIRE, S.; KROCHMAL, M. **RFC 6762 — Multicast DNS** (seção 3, nomes `.local`). IETF, 2013. Disponível em: <https://www.rfc-editor.org/rfc/rfc6762>.
+
+[13] KUNZE, S. et al. **RFC 2247 — Using Domains in LDAP/X.500 Distinguished Names**. IETF, 1998. Disponível em: <https://www.rfc-editor.org/rfc/rfc2247>.
