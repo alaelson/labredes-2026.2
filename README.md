@@ -73,20 +73,20 @@ Os links abaixo apontam para os roteiros detalhados de cada prática realizada e
     *   Conceitos de DNS: hierarquia, servidor autoritativo e recursivo, encaminhador, zonas, registros `SOA`, `NS`, `A` e `PTR`, primário e secundário.
     *   As 9 VMs da Etapa 1 ganham o nome do serviço (`gw`, `ns1`, `ns2`, `www`, `bd`, `arquivos`, `ldap`, `cliente`) no domínio `grupoX.bsi-26-2.maceio.lab`.
     *   `ns1` primário da zona direta e da reversa, `ns2` secundário com transferência de zona (`allow-transfer`, `also-notify`); DNS de todas as VMs apontado para o grupo; teste com o `ns1` desligado.
-10. **[Aula 10: Diretório LDAP do Grupo e Login Unificado com SSSD](Aula10.md)** (18/11)
+10. **[Aula 10: Diretório LDAP, Login Unificado com SSSD e Samba](Aula10.md)** (18/11)
     *   Conceitos de LDAP: árvore do diretório, DN, base, classes de objeto, LDIF e login unificado (NSS, PAM e SSSD).
-    *   OpenLDAP na VM `ldap` com `ou=usuarios`, `ou=grupos`, os grupos `lsor-gX` e `sftpusers`, os integrantes e o `novato`.
-    *   Remoção das contas locais da Etapa 1 e login unificado nas 9 VMs com SSSD, `mkhomedir` e `sudo` pelo grupo `lsor-gX`.
-11. **[Aula 11: Servidor de Arquivos e Aplicação Web em Duas Camadas](Aula11.md)** (25/11)
-    *   Samba com os compartilhamentos `publico` e `grupoX` para o grupo do LDAP, SFTP dos integrantes e SFTP restrito (`chroot`) do `novato`.
-    *   Site demo com Apache e PHP no `www` e MariaDB no `bd`, área `/admin` autenticada no LDAP e envio do site por SFTP.
+    *   OpenLDAP na VM `ldap` com `ou=usuarios`, `ou=grupos`, os grupos `lsor-gX` e `sftpusers`, os integrantes e o `novato`; remoção das contas locais da Etapa 1 e login unificado com SSSD, `mkhomedir` e `sudo` pelo grupo, testado por SSH.
+    *   Samba no `arquivos` em duas etapas: primeiro com uma conta local (sem login unificado), depois com os compartilhamentos `publico` e `grupoX` liberados pelo grupo do LDAP.
+11. **[Aula 11: Aplicação Web em Duas Camadas (LAMP) com SFTP e Login do LDAP](Aula11.md)** (25/11)
+    *   MariaDB no `bd` aceitando só o `www`; Apache e PHP no `www` com o site demo enviado por SFTP com a conta do LDAP.
+    *   *Virtual host* com a área `/admin` autenticada no LDAP pelo grupo `lsor-gX`; SFTP restrito (`chroot`) do `novato`.
     *   Roteiro da apresentação de 02/12.
 
 ---
 
 ### 🧩 Projeto da Disciplina
 *   **[Projeto — Etapa 1: Rede virtualizada com 8 VMs e Gateway NAT](projeto-etapa1/README.md)**: Cada grupo monta uma rede com 8 VMs Ubuntu Server distribuídas em 4 PCs do laboratório e uma VM gateway, todas em modo Placa em Ponte. O Grupo X usa a sub-rede `192.168.26.(16 × X)/28`, e o gateway liga essa rede à rede do laboratório (`172.20.20.0/22`) com encaminhamento de pacotes e NAT. Inclui a padronização de hostnames e FQDN no domínio `grupoX.bsi-26-2.maceio.lab`, do `/etc/hosts` e dos usuários dos integrantes em todas as VMs. Tem como base as Aulas 01 a 08.
-*   **[Projeto Final: Serviços de rede com login unificado](projeto-final/README.md)**: Cada grupo usa as mesmas 9 VMs da Etapa 1, no VirtualBox e na sub-rede `192.168.26.(16 × X)/28`, e implanta DNS primário e secundário (BIND9), diretório OpenLDAP, servidor de arquivos (Samba e SFTP), banco de dados (MariaDB) e servidor web (Apache e PHP) em VMs separadas. Todas as VMs autenticam no LDAP pelo SSSD, de modo que cada integrante usa uma única conta e senha em todos os serviços. Os testes são feitos a partir da VM `cliente` do grupo. Inclui um [site demo em PHP](projeto-final/site-demo/README.md) com consultas ao banco e área de administração autenticada no LDAP. Apresentação em 02/12.
+*   **[Projeto Final: Serviços de rede com login unificado](projeto-final/README.md)**: Cada grupo usa as mesmas 9 VMs da Etapa 1, no VirtualBox e na sub-rede `192.168.26.(16 × X)/28`, e implanta DNS primário e secundário (BIND9), diretório OpenLDAP, servidor de arquivos (Samba), banco de dados (MariaDB) e servidor web (Apache e PHP, com envio por SFTP) em VMs separadas. Todas as VMs autenticam no LDAP pelo SSSD, de modo que cada integrante usa uma única conta e senha em todos os serviços. Os testes são feitos a partir da VM `cliente` do grupo. Inclui um [site demo em PHP](projeto-final/site-demo/README.md) com consultas ao banco e área de administração autenticada no LDAP. Apresentação em 02/12.
 
 ---
 

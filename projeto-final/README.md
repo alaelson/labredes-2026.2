@@ -11,19 +11,19 @@ Na Etapa 1, cada grupo montou no laboratório uma rede privada com 9 VMs, IPs fi
 | **Gateway** | `gw` | Roteamento e NAT da rede do grupo (já feito na Etapa 1) |
 | **DNS** | `ns1` e `ns2` | Servidor de nomes primário e secundário com BIND9, zona direta e reversa |
 | **Login unificado** | `ldap` | Diretório OpenLDAP com os usuários e grupos; todas as VMs autenticam nele |
-| **Servidor de arquivos** | `arquivos` | Compartilhamentos Samba e SFTP sobre as mesmas pastas |
+| **Servidor de arquivos** | `arquivos` | Compartilhamentos Samba para o grupo, com as contas do LDAP |
 | **Banco de dados** | `bd` | MariaDB acessado pela rede, a partir do `www` |
-| **Servidor web** | `www` | Apache com PHP, publicando a aplicação do grupo |
+| **Servidor web** | `www` | Apache com PHP, publicando a aplicação do grupo, enviada por SFTP |
 | **Cliente de testes** | `cliente` | VM de onde o grupo testa todos os serviços pelo nome |
 
-O ponto central do projeto é o **login unificado**: cada integrante tem **uma única conta e senha**, guardadas no LDAP, e usa essa conta para entrar por SSH em qualquer VM, enviar arquivos por SFTP, abrir a pasta do grupo e administrar o site.
+O ponto central do projeto é o **login unificado**: cada integrante tem **uma única conta e senha**, guardadas no LDAP, e usa essa conta para entrar por SSH em qualquer VM, abrir a pasta do grupo no Samba, enviar o site por SFTP e administrá-lo.
 
 | Aula de apoio | Data | Seções do projeto |
 |:--|:--|:--|
 | [Aula 09: DNS do grupo](../Aula9.md) | 11/11 | 7 e 8 |
-| [Aula 10: LDAP e login unificado](../Aula10.md) | 18/11 | 9 e 10 |
-| [Aula 11: Arquivos e aplicação web](../Aula11.md) | 25/11 | 11 e 12 |
-| **Apresentação** | **02/12** | 13 |
+| [Aula 10: LDAP, login unificado e Samba](../Aula10.md) | 18/11 | 9, 10 e 11 |
+| [Aula 11: Aplicação web (LAMP) e SFTP](../Aula11.md) | 25/11 | 12 e 13 |
+| **Apresentação** | **02/12** | 14 |
 
 ### 2. Objetivos
 
@@ -32,8 +32,8 @@ Ao final do projeto, o grupo deve ser capaz de:
 1. Configurar um DNS autoritativo com servidor primário e secundário, transferência de zona e resolução reversa.
 2. Criar um diretório LDAP com usuários e grupos POSIX.
 3. Integrar servidores Linux ao LDAP com SSSD e PAM, centralizando login, diretório home e `sudo`.
-4. Publicar arquivos por Samba e SFTP com permissões por grupo.
-5. Montar uma aplicação web em duas camadas (Apache com PHP numa VM, MariaDB em outra), com área restrita autenticada no LDAP.
+4. Compartilhar pastas por Samba com permissões pelo grupo do LDAP, e comparar com o acesso por conta local.
+5. Montar uma aplicação web em duas camadas (Apache com PHP numa VM, MariaDB em outra), publicada por SFTP e com área restrita autenticada no LDAP.
 6. Testar cada serviço e documentar as evidências.
 
 ### 3. Ambiente
@@ -61,9 +61,9 @@ flowchart TB
     subgraph REDE["Rede do Grupo 0 — 192.168.26.0/28 — grupo0.bsi-26-2.maceio.lab"]
         NS1["ns1 · DNS primário<br/>192.168.26.2"]
         NS2["ns2 · DNS secundário<br/>192.168.26.3"]
-        WWW["www · Apache + PHP<br/>192.168.26.4"]
+        WWW["www · Apache + PHP e SFTP<br/>192.168.26.4"]
         BD["bd · MariaDB<br/>192.168.26.5"]
-        ARQ["arquivos · Samba e SFTP<br/>192.168.26.6"]
+        ARQ["arquivos · Samba<br/>192.168.26.6"]
         LDAP["ldap · OpenLDAP<br/>192.168.26.7"]
         CLI["cliente · testes<br/>192.168.26.9"]
     end
@@ -76,8 +76,8 @@ flowchart TB
 flowchart LR
     U["fulano.tal<br/>uma conta e uma senha"]
     U --> SSH["SSH e sudo<br/>em todas as VMs"]
-    U --> ARQ["arquivos<br/>Samba e SFTP"]
-    U --> WWW["www<br/>área /admin"]
+    U --> ARQ["arquivos<br/>pasta do grupo no Samba"]
+    U --> WWW["www<br/>SFTP e área /admin"]
     SSH --> LDAP["ldap · 192.168.26.7<br/>dc=grupo0,dc=bsi-26-2,dc=maceio,dc=lab"]
     ARQ --> LDAP
     WWW --> LDAP
@@ -119,10 +119,11 @@ A turma usa a rede **`192.168.26.0/24`** da Etapa 1, dividida em sub-redes **/28
 | 2 | DNS primário e secundário | Passo 1 | 8 | 09 |
 | 3 | Servidor LDAP | DNS | 9 | 10 |
 | 4 | Login unificado nas 9 VMs | LDAP | 10 | 10 |
-| 5 | Servidor de arquivos (Samba e SFTP) | Login unificado | 11 | 11 |
-| 6 | Banco de dados e servidor web | DNS e LDAP | 12 | 11 |
+| 5 | Servidor de arquivos (Samba) | Login unificado | 11 | 10 |
+| 6 | Banco de dados e servidor web | Login unificado | 12 | 11 |
+| 7 | SFTP restrito | Login unificado | 13 | 11 |
 
-Só passe para o próximo passo depois de testar o anterior a partir da VM `cliente` (seção 13).
+Só passe para o próximo passo depois de testar o anterior a partir da VM `cliente` (seção 14).
 
 ### 7. Preparação e gateway
 
@@ -162,7 +163,7 @@ O OpenLDAP guarda os usuários e grupos do projeto no formato POSIX (RFC 2307), 
 | Grupo | `gidNumber` | Membros | Uso |
 |:--|:--:|:--|:--|
 | `lsor-g0` | 10000 | todos os integrantes | `sudo` nas VMs, pasta do grupo e área `/admin` do site |
-| `sftpusers` | 10001 | `novato` | Usuário que só pode usar SFTP no `arquivos` |
+| `sftpusers` | 10001 | `novato` | Usuário que só pode usar SFTP, numa pasta própria do `www` |
 
 4. Um usuário para **cada integrante**, com login `nome.sobrenome`, e o usuário `novato`:
    - `uidNumber` a partir de **10001** para os integrantes; `10100` para o `novato`;
@@ -181,18 +182,18 @@ As 9 VMs buscam usuários, grupos e senhas no LDAP pelo SSSD [9, 10]. Passo a pa
 4. `sudo` para os integrantes pelo grupo `lsor-g0`.
 5. Login por senha no SSH liberado.
 
-### 11. Servidor de arquivos — `arquivos` (Samba e SFTP)
+### 11. Servidor de arquivos — `arquivos` (Samba)
 
-As **mesmas pastas** por dois protocolos [11, 12]. Passo a passo na [Aula 11](../Aula11.md).
+Pastas compartilhadas por Samba, com acesso pelo grupo do LDAP [11]. Passo a passo na [Aula 10](../Aula10.md), em duas etapas: primeiro com uma conta local, criada só no `arquivos` (sem login unificado), e depois com as contas e o grupo do LDAP. A configuração final fica só com a segunda etapa.
 
 | Compartilhamento | Caminho | Acesso |
 |:--|:--|:--|
-| `publico` | `/srv/arquivos/publico` | Leitura para todos, inclusive convidado |
+| `publico` | `/srv/arquivos/publico` | Leitura para todos, inclusive convidado; escrita para o `lsor-g0` |
 | `grupo0` | `/srv/arquivos/grupo0` | Leitura e escrita só para o grupo `lsor-g0` |
-| — | `/srv/sftp/novato/arquivos` | SFTP do `novato`, preso a essa pasta e sem terminal |
 
+- Pastas do grupo `lsor-g0`, com o bit setgid, para os arquivos novos herdarem o grupo.
 - Cada integrante é cadastrado no Samba com `smbpasswd -a`, com a mesma senha do LDAP.
-- O que um integrante grava pelo Samba aparece no SFTP, e vice-versa.
+- Conta local da primeira etapa removida no fim.
 
 ### 12. Servidor web e banco de dados — `www` e `bd`
 
@@ -200,10 +201,14 @@ Aplicação em **duas camadas**: Apache com PHP no `www` e MariaDB no `bd` [13, 
 
 1. **`bd`:** MariaDB escutando no IP do `bd`, banco `projeto` criado com o [`criar-banco.sql`](site-demo/bd/criar-banco.sql) e usuário da aplicação que só entra a partir do IP do `www`.
 2. **`www`:** Apache, PHP e `php-mysql`; *virtual host* `www.grupo0.bsi-26-2.maceio.lab` publicando só a pasta `public/`.
-3. **Área `/admin`:** usuário e senha do LDAP, liberada só para o grupo `lsor-g0` ([*virtual host* de exemplo](site-demo/apache/www.grupo0.bsi-26-2.maceio.lab.conf)).
-4. Arquivos do site enviados por SFTP, com a pasta do site pertencendo ao grupo `lsor-g0`.
+3. **Envio do site por SFTP**, com a conta do LDAP; a pasta do site pertence ao grupo `lsor-g0`, para qualquer integrante poder atualizá-la.
+4. **Área `/admin`:** usuário e senha do LDAP, liberada só para o grupo `lsor-g0` ([*virtual host* de exemplo](site-demo/apache/www.grupo0.bsi-26-2.maceio.lab.conf)).
 
-### 13. Testes e apresentação (02/12)
+### 13. SFTP restrito — `www`
+
+O `novato` só envia arquivos para `/srv/sftp/novato/arquivos` no `www`, preso a essa pasta (`ChrootDirectory`) e sem terminal (`ForceCommand internal-sftp`), pelo grupo `sftpusers` do LDAP [12]. Passo a passo na [Aula 11](../Aula11.md).
+
+### 14. Testes e apresentação (02/12)
 
 Todos os testes são feitos **a partir da VM `cliente`**, ao vivo na apresentação, e registrados no tutorial (comando e saída).
 
@@ -217,12 +222,12 @@ Todos os testes são feitos **a partir da VM `cliente`**, ao vivo na apresentaç
 | 6 | LDAP | `ldapsearch -x -LLL -H ldap://ldap -b dc=grupo0,dc=bsi-26-2,dc=maceio,dc=lab uid` | Integrantes e `novato` listados |
 | 7 | Login | `ssh fulano.tal@www`, `ssh fulano.tal@bd` e `ssh fulano.tal@arquivos`, com `id` e `sudo -l` | Mesma senha nas três; grupo `lsor-g0`; `sudo` liberado |
 | 8 | Login | Trocar a senha com `ldappasswd` no `ldap` e repetir o teste 7 | A senha nova vale em todas as VMs |
-| 9 | Arquivos | `smbclient //arquivos/grupo0 -U fulano.tal -c 'put arquivo.txt'` | Gravação liberada para integrantes; `novato` negado |
-| 10 | Arquivos | `sftp fulano.tal@arquivos` e `ls /srv/arquivos/grupo0` | O arquivo do teste 9 aparece pelo SFTP |
-| 11 | Arquivos | `sftp novato@arquivos` e depois `ssh novato@arquivos` | SFTP só na pasta `arquivos`; SSH recusado |
-| 12 | Web | `curl -s http://www.grupo0.bsi-26-2.maceio.lab/` | Página com "Conectado ao MariaDB … em bd…" |
-| 13 | Web | `curl -o /dev/null -w '%{http_code}\n' http://www/admin/`, sem e com `-u fulano.tal` | 401 sem senha; 200 com o integrante |
-| 14 | Web | `lynx http://www/admin/` com a conta de um integrante para cadastrar um registro, e `SELECT` no `bd` | Registro gravado no banco |
+| 9 | Samba | `smbclient //arquivos/publico -N -c ls` e `smbclient //arquivos/grupo0 -U fulano.tal -c 'put arquivo.txt'` | Convidado lê o `publico`; integrante grava no `grupo0`; `novato` negado |
+| 10 | Samba | `ssh fulano.tal@arquivos 'ls -l /srv/arquivos/grupo0'` | O arquivo do teste 9 pertence a `fulano.tal` e ao grupo `lsor-g0` |
+| 11 | Web | `curl -s http://www.grupo0.bsi-26-2.maceio.lab/` | Página com "Conectado ao MariaDB … em bd…" |
+| 12 | Web | `curl -o /dev/null -w '%{http_code}\n' http://www/admin/`, sem e com `-u fulano.tal` | 401 sem senha; 200 com o integrante |
+| 13 | Web | `lynx http://www/admin/` com a conta de um integrante para cadastrar um registro, e `SELECT` no `bd` | Registro gravado no banco |
+| 14 | SFTP | `sftp novato@www` e depois `ssh novato@www` | SFTP só na pasta `arquivos`; SSH recusado |
 
 Cada integrante deve saber explicar pelo menos um serviço.
 
@@ -234,11 +239,11 @@ O grupo documenta tudo no **repositório do projeto do grupo no GitHub**, com o 
 
 1. **Planilha de acompanhamento:** completar as tabelas do grupo com os IPs, os nomes e os usuários do LDAP (login e `uidNumber`). Nunca coloque senhas na planilha.
 2. **Diagrama de topologia** do grupo, adaptado das Figuras 1 e 2.
-3. **Tutorial**, com uma seção por serviço (seções 7 a 12), contendo:
+3. **Tutorial**, com uma seção por serviço (seções 7 a 13), contendo:
    - os arquivos de configuração alterados (Netplan, zonas e opções do BIND, `sssd.conf`, `smb.conf`, trecho do `sshd_config`, *virtual host* do Apache) — **sem senhas nem *hashes***;
    - os LDIF usados no diretório, sem o campo `userPassword`;
    - o código da aplicação web, sem o `config.php`;
-   - as evidências dos 14 testes da seção 13;
+   - as evidências dos 14 testes da seção 14;
    - os problemas encontrados e como foram resolvidos.
 4. **Apresentação final** em **02/12**, com os testes executados ao vivo. O repositório do grupo deve estar atualizado até o início da aula.
 

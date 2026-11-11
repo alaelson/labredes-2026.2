@@ -316,7 +316,7 @@ O `search` permite usar o **nome curto**: `ping ldap` vira `ping ldap.grupo0.bsi
 
 ## 6. Testes do DNS (na VM `cliente`)
 
-Correspondem aos testes 2 a 5 da seção 13 do enunciado.
+Correspondem aos testes 2 a 5 da seção 14 do enunciado.
 
 ```bash
 dig www.grupo0.bsi-26-2.maceio.lab                        # flag aa e o IP .4

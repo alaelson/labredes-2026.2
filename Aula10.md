@@ -1,6 +1,6 @@
-# Aula 10: Diretório LDAP do Grupo e Login Unificado com SSSD
+# Aula 10: Diretório LDAP, Login Unificado com SSSD e Samba
 
-Objetivo: entender como funciona um diretório LDAP e montar, na VM `ldap`, o **diretório do grupo** com os usuários e grupos do projeto, e depois ligar o **login unificado** (SSSD) nas 9 VMs: cada integrante passa a ter uma única conta e senha, guardadas no LDAP. Corresponde às seções 9 e 10 do [Projeto Final](projeto-final/README.md).
+Objetivo: entender como funciona um diretório LDAP e montar, na VM `ldap`, o **diretório do grupo** com os usuários e grupos do projeto; ligar o **login unificado** (SSSD) nas VMs e testá-lo por SSH; e, por fim, montar o **Samba** na VM `arquivos`, primeiro com uma conta local (sem login unificado) e depois com as contas e o grupo do LDAP. Corresponde às seções 9, 10 e 11 do [Projeto Final](projeto-final/README.md).
 
 **Duração:** 1h30 · **Ambiente:** VirtualBox, as 9 VMs da Etapa 1 · **Base:** [Aula 09](Aula9.md) (DNS do grupo funcionando)
 
@@ -12,10 +12,13 @@ Objetivo: entender como funciona um diretório LDAP e montar, na VM `ldap`, o **
 
 | Tempo | Parte | Conteúdo |
 |:--|:--|:--|
-| 0–20 min | Teoria | LDAP: árvore do diretório, DN, classes de objeto, LDIF e login unificado (seção 1) |
-| 20–50 min | Prática 1 | OpenLDAP na VM `ldap`: grupos e contas dos integrantes (seções 2 e 3) |
-| 50–80 min | Prática 2 | Login unificado: remover as contas locais e configurar o SSSD nas 9 VMs (seções 4 e 5) |
-| 80–90 min | Checagem | Testes da seção 6 e o que precisa estar pronto para a Aula 11 |
+| 0–15 min | Teoria | LDAP: árvore do diretório, DN, classes de objeto, LDIF e login unificado (seção 1) |
+| 15–40 min | Prática 1 | OpenLDAP na VM `ldap`: grupos e contas dos integrantes (seções 2 e 3) |
+| 40–60 min | Prática 2 | Login unificado: remover as contas locais, SSSD no `cliente`, `www` e `arquivos` e teste por SSH (seções 4, 5 e 6) |
+| 60–85 min | Prática 3 | Samba no `arquivos`: primeiro sem login unificado, depois com as contas do LDAP (seção 7) |
+| 85–90 min | Fechamento | O que precisa estar pronto para a Aula 11 (seção 9) |
+
+Em sala, o SSSD é ligado em três VMs (`cliente`, `www` e `arquivos`). O grupo repete a seção 5 nas outras seis VMs até a Aula 11.
 
 ---
 
@@ -193,7 +196,7 @@ userPassword: {SSHA}cole-aqui-o-hash
 | Login `nome.sobrenome`, igual ao da Etapa 1 | Os integrantes continuam com o mesmo nome de usuário |
 | `uidNumber` dos integrantes a partir de 10001; `novato` com 10100 | Não colide com as contas locais (a partir de 1000) |
 | `gidNumber 10000` (grupo `lsor-g0`) para os integrantes | É o grupo que dá `sudo`, a pasta do grupo e o `/admin` do site |
-| `novato` no grupo `sftpusers`, com `/usr/sbin/nologin` | Só vai usar SFTP restrito no `arquivos` (Aula 11) |
+| `novato` no grupo `sftpusers`, com `/usr/sbin/nologin` | Só vai usar SFTP restrito no `www` (Aula 11) |
 | Uma linha em branco entre as entradas | É o separador de entradas do LDIF |
 
 ### 3.3 Carregar e consultar
@@ -257,7 +260,7 @@ getent passwd | awk -F: '$3 >= 1000 && $3 < 60000 {print $1, $3}'   # deve sobra
 
 ## 5. Login unificado com SSSD (todas as 9 VMs)
 
-Faça primeiro na VM `cliente`, teste, e depois repita nas outras 8 (inclusive `gw` e `ldap`) [5, 6].
+Faça primeiro na VM `cliente` e teste; depois repita no `www` e no `arquivos`. Até a Aula 11, repita nas outras seis VMs (inclusive `gw` e `ldap`) [5, 6].
 
 ```bash
 sudo apt-get install -y sssd-ldap libnss-sss libpam-sss ldap-utils
@@ -316,16 +319,15 @@ grep fulano.tal /etc/passwd    # não aparece: a conta não é local
 
 ---
 
-## 6. Checagem do fim da aula (na VM `cliente`)
+## 6. Teste do login unificado por SSH (na VM `cliente`)
 
-Correspondem aos testes 6 a 8 da seção 13 do enunciado.
+Correspondem aos testes 6 a 8 da seção 14 do enunciado.
 
 ```bash
 ldapsearch -x -LLL -H ldap://ldap -b dc=grupo0,dc=bsi-26-2,dc=maceio,dc=lab uid   # integrantes e novato
 ssh fulano.tal@www          # senha do LDAP; o home é criado no primeiro login
 id; sudo -l; exit           # grupo lsor-g0 e sudo liberado
-ssh fulano.tal@bd           # mesma senha
-ssh fulano.tal@arquivos     # mesma senha
+ssh fulano.tal@arquivos     # mesma senha, outra VM
 ssh novato@www              # recusado: shell /usr/sbin/nologin
 ```
 
@@ -336,9 +338,9 @@ ldappasswd -x -D cn=admin,dc=grupo0,dc=bsi-26-2,dc=maceio,dc=lab -W -S \
   uid=fulano.tal,ou=usuarios,dc=grupo0,dc=bsi-26-2,dc=maceio,dc=lab
 ```
 
-Repita `ssh fulano.tal@www` e `ssh fulano.tal@bd` com a senha nova: ela vale nas duas sem mexer nas VMs.
+Repita `ssh fulano.tal@www` e `ssh fulano.tal@arquivos` com a senha nova: ela vale nas duas sem mexer nas VMs.
 
-### 6.1 Problemas comuns
+### 6.1 Problemas comuns do LDAP e do SSSD
 
 | Sintoma | Causa provável | O que fazer |
 |:--|:--|:--|
@@ -353,26 +355,177 @@ Repita `ssh fulano.tal@www` e `ssh fulano.tal@bd` com a senha nova: ela vale nas
 
 ---
 
-## 7. Registro no repositório do grupo
+## 7. Prática 3 — Samba no `arquivos`
 
-Nas seções **LDAP** e **Login unificado** do tutorial do grupo, no [Modelo de 7 Passos](README.md):
+O Samba compartilha pastas do Linux pela rede com o protocolo SMB, o mesmo das pastas compartilhadas do Windows [8, 9]. A prática tem duas etapas, para mostrar a diferença que o login unificado faz:
 
-1. As respostas do `dpkg-reconfigure slapd` (sem a senha).
-2. O LDIF **sem as linhas `userPassword`** e a saída do `ldapsearch`.
-3. O `sssd.conf`, o arquivo do `sudoers.d` e o `getent passwd`/`id` em três VMs diferentes.
-4. O teste de troca de senha com `ldappasswd`.
+| Etapa | Quem acessa | De onde vem a conta |
+|:--|:--|:--|
+| 7.2 Sem login unificado | `visitante`, criado só no `arquivos` | `/etc/passwd` do `arquivos`: a conta não existe nas outras VMs |
+| 7.3 Com login unificado | `fulano.tal` e os integrantes, pelo grupo `lsor-g0` | LDAP: a mesma conta, UID e grupo em todas as VMs |
+
+### 7.1 Instalação e pastas
+
+Tire um *snapshot* do `arquivos` (`antes-samba`). Depois:
+
+```bash
+sudo apt-get install -y samba smbclient
+sudo ss -tlnp | grep -E ':(139|445)\s'      # Samba escutando nas portas 139 e 445
+sudo cp /etc/samba/smb.conf /etc/samba/smb.conf.original
+```
+
+### 7.2 Etapa 1 — Samba sem login unificado
+
+Crie uma conta **local**, só no `arquivos`, e uma pasta para ela:
+
+```bash
+sudo adduser --shell /usr/sbin/nologin --gecos "" visitante
+sudo mkdir -p /srv/arquivos/local
+sudo chown visitante:visitante /srv/arquivos/local
+sudo chmod 770 /srv/arquivos/local
+```
+
+O Samba não usa a senha do Linux: ele guarda um *hash* próprio. Cadastre a conta no Samba:
+
+```bash
+sudo smbpasswd -a visitante
+sudo pdbedit -L                     # visitante
+```
+
+Crie um `/etc/samba/smb.conf` novo, só com o necessário:
+
+```ini
+[global]
+   workgroup = LSOR
+   server string = Arquivos do Grupo 0
+   server role = standalone server
+   map to guest = Bad User
+   log file = /var/log/samba/log.%m
+   max log size = 1000
+
+[local]
+   path = /srv/arquivos/local
+   valid users = visitante
+   read only = no
+```
+
+```bash
+testparm -s                         # sem erros, com o compartilhamento [local]
+sudo systemctl restart smbd
+```
+
+**Teste na VM `cliente`:**
+
+```bash
+sudo apt-get install -y smbclient
+smbclient -L //arquivos -U visitante                                   # lista o [local]
+smbclient //arquivos/local -U visitante -c 'put /etc/hostname teste.txt; ls'
+ssh fulano.tal@www 'id visitante'                                      # no such user: a conta só existe no arquivos
+```
+
+**O problema:** para cada pessoa, seria preciso criar a conta no `arquivos`, com uma senha a mais, e de novo em cada servidor que ela usar. É o que o login unificado resolve.
+
+### 7.3 Etapa 2 — Samba com login unificado
+
+Agora o acesso é pelo **grupo `lsor-g0` do LDAP**. Crie as pastas do projeto:
+
+```bash
+sudo mkdir -p /srv/arquivos/publico /srv/arquivos/grupo0
+sudo chown root:lsor-g0 /srv/arquivos/publico /srv/arquivos/grupo0   # lsor-g0 vem do LDAP, pelo SSSD
+sudo chmod 2775 /srv/arquivos/publico
+sudo chmod 2770 /srv/arquivos/grupo0
+ls -ld /srv/arquivos/*
+```
+
+O bit **setgid** (o `2` de `2770`) faz todo arquivo criado na pasta herdar o grupo `lsor-g0`.
+
+Troque o compartilhamento `[local]` do `smb.conf` pelos dois do projeto (o `[global]` continua igual):
+
+```ini
+[publico]
+   path = /srv/arquivos/publico
+   read only = yes
+   guest ok = yes
+   write list = @lsor-g0
+
+[grupo0]
+   path = /srv/arquivos/grupo0
+   valid users = @lsor-g0
+   read only = no
+   force group = lsor-g0
+   create mask = 0660
+   directory mask = 2770
+```
+
+| Opção | Função |
+|:--|:--|
+| `@lsor-g0` | O `@` indica um **grupo**: o Samba pergunta ao sistema quem é membro, e o SSSD responde com o LDAP |
+| `guest ok` e `map to guest = Bad User` | No `publico`, quem não tem conta entra como convidado, só para ler |
+| `force group`, `create mask`, `directory mask` | Arquivos novos do grupo, com leitura e escrita para o grupo |
+
+O Samba continua guardando o próprio *hash* de senha, que o LDAP do projeto não tem. Cadastre cada integrante **com a mesma senha do LDAP**; o `smbpasswd` só aceita `fulano.tal` porque o SSSD já faz o sistema enxergar a conta:
+
+```bash
+sudo smbpasswd -a fulano.tal
+sudo smbpasswd -a beltrano.silva
+sudo smbpasswd -a novato            # para o teste de acesso negado
+testparm -s && sudo systemctl restart smbd
+```
+
+Remova a conta local da etapa 1, que não faz parte do projeto:
+
+```bash
+sudo smbpasswd -x visitante
+sudo deluser --remove-home visitante
+sudo rm -r /srv/arquivos/local
+```
+
+**Teste na VM `cliente`** (testes 9 e 10 da seção 14 do enunciado):
+
+```bash
+smbclient -L //arquivos -N                                                   # publico e grupo0, sem senha
+smbclient //arquivos/publico -N -c 'ls'                                      # convidado lê o publico
+smbclient //arquivos/grupo0 -U fulano.tal -c 'put /etc/hostname teste-smb.txt; ls'
+smbclient //arquivos/grupo0 -U novato -c 'ls'                                # NT_STATUS_ACCESS_DENIED: fora do lsor-g0
+ssh fulano.tal@arquivos 'ls -l /srv/arquivos/grupo0'                         # dono fulano.tal, grupo lsor-g0
+```
+
+O arquivo gravado pelo Samba pertence a `fulano.tal` e ao grupo `lsor-g0`, os mesmos UID e GID que essa conta tem em todas as VMs.
+
+> **Integração completa.** Com o esquema do Samba no LDAP, o próprio diretório guardaria o *hash* do Samba e o `smbpasswd -a` deixaria de ser necessário. Fica fora do escopo do projeto.
+
+### 7.4 Problemas comuns do Samba
+
+| Sintoma | Causa provável | O que fazer |
+|:--|:--|:--|
+| `testparm` acusa erro | Nome de parâmetro digitado errado | Corrija a linha indicada e rode de novo |
+| `smbpasswd -a fulano.tal`: *Failed to add entry* | O `arquivos` ainda não enxerga o LDAP | `getent passwd fulano.tal` e seção 5 |
+| `NT_STATUS_LOGON_FAILURE` | Conta sem `smbpasswd -a`, ou senha diferente | Cadastre de novo com `smbpasswd -a` |
+| `NT_STATUS_ACCESS_DENIED` para um integrante | Integrante fora do `lsor-g0` no LDAP | `id fulano.tal` no `arquivos` |
+| Arquivo gravado sem o grupo `lsor-g0` | Pasta sem o bit setgid | `sudo chmod 2770 /srv/arquivos/grupo0` |
 
 ---
 
-## 8. Para a Aula 11 (25/11)
+## 8. Registro no repositório do grupo
+
+Nas seções **LDAP**, **Login unificado** e **Servidor de arquivos** do tutorial do grupo, no [Modelo de 7 Passos](README.md):
+
+1. As respostas do `dpkg-reconfigure slapd` (sem a senha).
+2. O LDIF **sem as linhas `userPassword`** e a saída do `ldapsearch`.
+3. O `sssd.conf`, o arquivo do `sudoers.d`, o `getent passwd`/`id` em três VMs diferentes e o teste de troca de senha com `ldappasswd`.
+4. O `smb.conf` das duas etapas, `testparm -s`, `pdbedit -L` e os testes das seções 7.2 e 7.3, explicando a diferença entre elas.
+
+---
+
+## 9. Para a Aula 11 (25/11)
 
 Chegue com:
 
-- [ ] `ldapsearch` do `cliente` listando os integrantes e o `novato`.
-- [ ] `ssh fulano.tal@<qualquer VM>` funcionando com a senha do LDAP e `sudo` liberado.
+- [ ] SSSD nas 9 VMs: `ssh fulano.tal@<qualquer VM>` com a senha do LDAP e `sudo` liberado.
 - [ ] Nenhuma conta local de integrante sobrando nas VMs.
+- [ ] Samba do `arquivos` com os compartilhamentos `publico` e `grupo0`.
 
-Na Aula 11 o grupo monta o servidor de arquivos e a aplicação web, que usam essas mesmas contas e o grupo `lsor-g0`.
+Na Aula 11 o grupo monta a aplicação web (LAMP) no `www` e no `bd`, com o envio do site por SFTP e a área de administração protegida pelo LDAP.
 
 ---
 
@@ -391,3 +544,7 @@ Na Aula 11 o grupo monta o servidor de arquivos e a aplicação web, que usam es
 [6] SSSD PROJECT. **sssd-ldap(5)** — página de manual. Disponível em: <https://manpages.ubuntu.com/manpages/noble/man5/sssd-ldap.5.html>.
 
 [7] CANONICAL. **Install and configure LDAP**. Ubuntu Server documentation. Disponível em: <https://documentation.ubuntu.com/server/how-to/openldap/install-openldap>.
+
+[8] SAMBA TEAM. **smb.conf(5)** — opções `valid users`, `write list`, `force group`, `create mask`, `directory mask` e `map to guest`. Disponível em: <https://www.samba.org/samba/docs/current/man-html/smb.conf.5.html>.
+
+[9] CANONICAL. **Set up Samba as a file server**. Ubuntu Server documentation. Disponível em: <https://ubuntu.com/server/docs/how-to/samba/file-server/>.
