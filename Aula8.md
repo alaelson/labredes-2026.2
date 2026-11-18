@@ -24,6 +24,49 @@ sudo hostnamectl set-hostname vm2-cliente
 hostname
 ```
 
+### Nome da máquina × identificador da máquina (`machine-id`)
+
+O **hostname** é o nome da máquina **para as pessoas**: aparece no prompt, nos logs e é usado para encontrar a máquina na rede. Além dele, cada instalação do Linux tem um **identificador interno**, o **`machine-id`**: um número hexadecimal de 32 caracteres, gravado no arquivo `/etc/machine-id` e criado automaticamente no primeiro boot do sistema. Ele também aparece na saída do `hostnamectl`, na linha `Machine ID`.
+
+Os dois são **independentes**: trocar o hostname **não** muda o `machine-id`.
+
+**Por que isso importa?** Quando uma VM é **clonada** no VirtualBox, ou importada de um mesmo arquivo `.ova`, a cópia herda o `machine-id` da original, mesmo recebendo um nome e um endereço MAC novos. O Ubuntu Server usa esse identificador, por exemplo, para montar o **identificador de cliente DHCP**: duas VMs clonadas, na mesma rede e usando DHCP, podem receber **o mesmo endereço IP**, porque o servidor DHCP enxerga as duas como a mesma máquina.
+
+Veja o `machine-id` nas duas VMs (VM1 e VM2):
+
+```bash
+cat /etc/machine-id
+```
+
+Se os valores da VM1 e da VM2 forem **iguais**, uma delas foi clonada da outra. Gere um identificador novo **somente na VM clonada**:
+
+**Passo 1.** Apague o identificador herdado e também a cópia dele usada pelo D-Bus (`/var/lib/dbus/machine-id`). Se essa cópia for um arquivo comum, e não um link, o `systemd-machine-id-setup` do passo 2 copia o ID antigo de volta a partir dela:
+
+```bash
+sudo rm -f /etc/machine-id /var/lib/dbus/machine-id
+```
+
+**Passo 2.** Gere um identificador novo e único. O `systemd-machine-id-setup` é a ferramenta do `systemd` que cria o `/etc/machine-id` quando ele não existe:
+
+```bash
+sudo systemd-machine-id-setup
+```
+
+**Passo 3.** Recrie a cópia do D-Bus como um link para o arquivo novo, para os dois ficarem sempre iguais:
+
+```bash
+sudo ln -sf /etc/machine-id /var/lib/dbus/machine-id
+```
+**Passo 4.** Reinicie a VM para que todos os serviços passem a usar o novo identificador:
+
+```bash
+sudo reboot
+```
+
+Depois do boot, rode `cat /etc/machine-id` de novo e confira que agora os valores são diferentes.
+
+> Se as VMs foram instaladas do zero, uma a uma, os identificadores já são diferentes e não é preciso fazer nada.
+
 ## 1. Habilitar encaminhamento de IP (VM1)
 
 Habilitar imediatamente:
@@ -156,6 +199,7 @@ Alternativas: criar unit systemd que aplica regras no boot ou usar ferramentas d
 - Se ping externo falhar: confirme ip_forward, regras iptables na VM1 e rota default em VM1.
 - Se DNS falhar por nome: verifique nameservers em /etc/netplan/*.yaml e /etc/resolv.conf.
 - Se regras não carregarem no boot: verifique /etc/iptables/rules.v4 e serviço netfilter-persistent.
+- Se duas VMs clonadas receberem o mesmo IP por DHCP: compare o `/etc/machine-id` das duas e gere um novo na VM clonada (seção 0).
 
 ---
 
@@ -177,3 +221,11 @@ Faça commit do relatório (ex: aula08-relatorio.md) e envie o link do repositó
 
 ---
 ```
+
+---
+
+## Referências
+
+* FREEDESKTOP.ORG. **machine-id(5)**: identificador local da máquina. Disponível em: <https://www.freedesktop.org/software/systemd/man/latest/machine-id.html>.
+* FREEDESKTOP.ORG. **systemd-machine-id-setup(1)**. Disponível em: <https://www.freedesktop.org/software/systemd/man/latest/systemd-machine-id-setup.html>.
+* FREEDESKTOP.ORG. **systemd.network(5)**, opção `ClientIdentifier=` da seção `[DHCPv4]`. Disponível em: <https://www.freedesktop.org/software/systemd/man/latest/systemd.network.html>.
