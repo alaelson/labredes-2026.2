@@ -381,7 +381,7 @@ Com a VM reduzida, o `.ova` deve ficar em torno de **1 GB**.
 O **clone vinculado** guarda só as diferenças em relação à VM original e ocupa poucos MB no começo, em vez de mais uma cópia inteira do disco.
 
 1. Clique com o botão direito na VM importada (ou na `ubuntu-base`, no PC onde ela foi preparada) → **Clonar**.
-2. Dê o nome da segunda VM daquele PC (por exemplo `g0-pc2-vm2`).
+2. Nos PCs que importaram o OVA, dê o nome da segunda VM daquele PC (por exemplo `g0-pc2-vm2`). No PC onde a base foi preparada, execute os passos 1 a 4 duas vezes a partir da `ubuntu-base`: uma para criar a primeira VM (por exemplo `g0-pc1-vm1`) e outra para criar a segunda (`g0-pc1-vm2`).
 3. Em **Política de endereço MAC**, escolha **Gerar novos endereços MAC para todas as placas de rede**.
 4. Em **Tipo de clone**, escolha **Clone vinculado**.
 
