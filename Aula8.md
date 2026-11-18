@@ -40,10 +40,10 @@ cat /etc/machine-id
 
 Se os valores da VM1 e da VM2 forem **iguais**, uma delas foi clonada da outra. Gere um identificador novo **somente na VM clonada**:
 
-**Passo 1.** Apague o identificador herdado:
+**Passo 1.** Apague o identificador herdado e também a cópia dele usada pelo D-Bus (`/var/lib/dbus/machine-id`). Se essa cópia for um arquivo comum, e não um link, o `systemd-machine-id-setup` do passo 2 copia o ID antigo de volta a partir dela:
 
 ```bash
-sudo rm -f /etc/machine-id
+sudo rm -f /etc/machine-id /var/lib/dbus/machine-id
 ```
 
 **Passo 2.** Gere um identificador novo e único. O `systemd-machine-id-setup` é a ferramenta do `systemd` que cria o `/etc/machine-id` quando ele não existe:
@@ -52,7 +52,12 @@ sudo rm -f /etc/machine-id
 sudo systemd-machine-id-setup
 ```
 
-**Passo 3.** Reinicie a VM para que todos os serviços passem a usar o novo identificador:
+**Passo 3.** Recrie a cópia do D-Bus como um link para o arquivo novo, para os dois ficarem sempre iguais:
+
+```bash
+sudo ln -sf /etc/machine-id /var/lib/dbus/machine-id
+```
+**Passo 4.** Reinicie a VM para que todos os serviços passem a usar o novo identificador:
 
 ```bash
 sudo reboot

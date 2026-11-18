@@ -356,7 +356,7 @@ As VMs do projeto ficam em **4 PCs**, com 2 VMs em cada um, mais a VM gateway no
 2. Formato **OVF 2.0** e nome `ubuntu-base.ova`, salvo em `C:\2026.2\BSI\VM\original`.
 3. Em **Política de endereço MAC**, escolha **Remover todos os endereços MAC das placas de rede**.
 
-Gere o *hash* do arquivo no PowerShell, para conferir se a cópia chegou íntegra:
+Gere o *hash* do arquivo no PowerShell, com o **caminho completo** do `.ova` (o PowerShell pode estar em outra pasta, como a do VirtualBox), para conferir se a cópia chegou íntegra:
 
 ```powershell
 Get-FileHash 'C:\2026.2\BSI\VM\original\ubuntu-base.ova' -Algorithm SHA256
@@ -381,11 +381,13 @@ Com a VM reduzida, o `.ova` deve ficar em torno de **1 GB**.
 O **clone vinculado** guarda só as diferenças em relação à VM original e ocupa poucos MB no começo, em vez de mais uma cópia inteira do disco.
 
 1. Clique com o botão direito na VM importada (ou na `ubuntu-base`, no PC onde ela foi preparada) → **Clonar**.
-2. Nos PCs que importaram o OVA, dê o nome da segunda VM daquele PC (por exemplo `g0-pc2-vm2`). No PC onde a base foi preparada, execute os passos 1 a 4 duas vezes a partir da `ubuntu-base`: uma para criar a primeira VM (por exemplo `g0-pc1-vm1`) e outra para criar a segunda (`g0-pc1-vm2`).
+2. Dê o nome da segunda VM daquele PC (por exemplo `g0-pc2-vm2`).
 3. Em **Política de endereço MAC**, escolha **Gerar novos endereços MAC para todas as placas de rede**.
 4. Em **Tipo de clone**, escolha **Clone vinculado**.
 
 **No PC1, crie também a VM gateway:** faça mais um clone vinculado com o nome `gx-pc1-gw` e, com ele desligado, habilite o **Adaptador 2** em *Configurações → Rede*. As duas placas do gateway são configuradas depois, seguindo as [Aulas 06](Aula6.md) e [07](Aula7.md).
+
+> **No PC onde a base foi preparada**, repita a clonagem para criar **todas** as VMs desse PC a partir da `ubuntu-base`: a primeira e a segunda (por exemplo `g0-pc1-vm1` e `g0-pc1-vm2`), além do `gx-pc1-gw`. Nos outros PCs, a primeira VM é a importada, e só a segunda é clone.
 
 > ⚠️ Clones vinculados **dependem** da VM original e do snapshot dela. **Não apague nem mova** a VM original enquanto o clone existir.
 
@@ -407,6 +409,8 @@ sudo nano /etc/hosts
 
 **Passo 3.** Apague o `machine-id` herdado da VM base. O hostname é o nome **para as pessoas**; o `machine-id` é o identificador **interno** da instalação, e trocar um não muda o outro. Toda VM importada ou clonada da mesma base fica com o mesmo `machine-id`, e o Ubuntu Server usa esse valor, por exemplo, como identificador de cliente DHCP: duas VMs com o mesmo `machine-id`, na mesma rede e usando DHCP, podem receber **o mesmo IP**.
 
+Apague também a cópia do D-Bus (`/var/lib/dbus/machine-id`). Se ela for um arquivo comum, e não um link, o `systemd-machine-id-setup` do passo 4 copia o ID antigo de volta a partir dela:
+
 ```bash
 sudo rm -f /etc/machine-id /var/lib/dbus/machine-id
 ```
@@ -417,13 +421,19 @@ sudo rm -f /etc/machine-id /var/lib/dbus/machine-id
 sudo systemd-machine-id-setup
 ```
 
-**Passo 5.** Apague as chaves de host SSH herdadas da VM base:
+**Passo 5.** Recrie a cópia do D-Bus como um link para o arquivo novo, para os dois ficarem sempre iguais:
+
+```bash
+sudo ln -sf /etc/machine-id /var/lib/dbus/machine-id
+```
+
+**Passo 6.** Apague as chaves de host SSH herdadas da VM base:
 
 ```bash
 sudo rm -f /etc/ssh/ssh_host_*
 ```
 
-**Passo 6.** Gere chaves novas. **Não pule este passo**, senão o servidor SSH não volta a funcionar:
+**Passo 7.** Gere chaves novas. **Não pule este passo**, senão o servidor SSH não volta a funcionar:
 
 ```bash
 sudo ssh-keygen -A
@@ -431,7 +441,7 @@ sudo ssh-keygen -A
 
 O `ssh-keygen -A` gera as chaves de host de todos os tipos que estiverem faltando.
 
-**Passo 7.** Reinicie a VM:
+**Passo 8.** Reinicie a VM:
 
 ```bash
 sudo reboot
