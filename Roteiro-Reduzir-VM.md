@@ -359,7 +359,7 @@ As VMs do projeto ficam em **4 PCs**, com 2 VMs em cada um, mais a VM gateway no
 Gere o *hash* do arquivo no PowerShell, para conferir se a cópia chegou íntegra:
 
 ```powershell
-Get-FileHash .\ubuntu-base.ova -Algorithm SHA256
+Get-FileHash 'C:\2026.2\BSI\VM\original\ubuntu-base.ova' -Algorithm SHA256
 ```
 
 O **hash SHA-256** é uma "impressão digital" do arquivo. Se um único bit mudar, o hash muda, então dá para comparar a cópia com o original.
