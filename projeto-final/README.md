@@ -38,6 +38,8 @@ Ao final do projeto, o grupo deve ser capaz de:
 
 ### 3. Ambiente
 
+> **Projeto nas VMs do LabRedes (VPN):** a turma passou a usar 7 VMs por grupo no servidor do laboratório, acessadas pela VPN, no lugar do VirtualBox. O que muda nesta seção, na topologia e nos testes está em [Migração do Projeto Final para as VMs do LabRedes](migracao-vpn.md).
+
 | Item | Valor |
 |:--|:--|
 | Onde | VirtualBox nos 4 PCs do grupo no laboratório, placas em modo **Bridge** (como na Etapa 1) |
