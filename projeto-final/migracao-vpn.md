@@ -155,7 +155,7 @@ Implemente os serviços na ordem do enunciado (seções 8 a 13), com estas adapt
 ```
 
 - O `ns2` busca a zona no `ns1` pelo IP externo do `ns1` (`primaries { 10.26.2.102; };`). Na fase B, esse IP muda (seção 6.5).
-- O professor configura os DNS do LabRedes para encaminhar a zona `grupoX.bsi-26-2.maceio.lab` para o `ns1` do grupo. Com isso, o computador do aluno na VPN resolve os nomes do grupo.
+- Os DNS do LabRedes são donos da zona `maceio.lab` e **delegam** a zona `grupoX.bsi-26-2.maceio.lab` para o `ns1` do grupo, com um registro `NS` e o IP externo do `ns1`, como no DNS da internet. Com isso, o computador do aluno na VPN resolve os nomes do grupo: ele pergunta ao DNS do LabRedes, que busca a resposta no `ns1` do grupo. Enquanto o `ns1` do grupo não responder, os nomes do grupo dão `SERVFAIL`.
 
 **Demais serviços.** Nos arquivos de configuração, use sempre os **nomes** dos servidores (`ldap.grupo1.bsi-26-2.maceio.lab`, `bd.grupo1.bsi-26-2.maceio.lab`), não os IPs. Assim, na fase B, basta o DNS passar a responder os IPs internos.
 
@@ -388,7 +388,7 @@ view "externa" {
 ```
 
 - `db.grupo1.interna`: a zona da fase A, com os registros `A` trocados para os IPs internos (`192.168.26.x`).
-- `db.grupo1.externa`: só `ns1`, `www` e `samba`, todos com o IP externo do `gw` (`10.26.2.101`).
+- `db.grupo1.externa`: só `ns1`, `www` e `samba`, todos com o IP externo do `gw` (`10.26.2.101`), e **só o `ns1` no registro `NS`**. O `ns2` fica fora da visão externa: o DNS do LabRedes não alcança a rede interna e perderia tempo tentando o IP `192.168.26.x` dele.
 - Quando há `view`, todas as zonas precisam estar dentro de uma. Por isso o `include "/etc/bind/named.conf.default-zones"` vai para a visão interna e sai do `/etc/bind/named.conf`.
 - No `named.conf.options`, retire o `forwarders` e o `allow-recursion` da fase A: eles passam a ficar na visão interna.
 
@@ -408,7 +408,7 @@ sudo named-checkzone grupo1.bsi-26-2.maceio.lab /etc/bind/db.grupo1.externa
 sudo rndc reload
 ```
 
-O professor troca, nos DNS do LabRedes, o destino da zona `grupoX.bsi-26-2.maceio.lab`: do IP externo do `ns1` para o IP externo do `gw`.
+Quando o encaminhamento da porta 53 estiver funcionando, avise o professor: ele troca, na zona `maceio.lab` do LabRedes, o IP da delegação do grupo, do IP externo do `ns1` para o IP externo do `gw`.
 
 ### 6.6 Testes da fase B
 
