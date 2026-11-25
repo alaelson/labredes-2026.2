@@ -23,7 +23,8 @@ O ponto central do projeto é o **login unificado**: cada integrante tem **uma �
 | [Aula 09: DNS do grupo](../Aula9.md) | 11/11 | 7 e 8 |
 | [Aula 10: LDAP, login unificado e Samba](../Aula10.md) | 18/11 | 9, 10 e 11 |
 | [Aula 11: Aplicação web (LAMP) e SFTP](../Aula11.md) | 25/11 | 12 e 13 |
-| **Apresentação** | **02/12** | 14 |
+| Acompanhamento: fase B da [migração](migracao-vpn.md) (rede atrás do `gw`) | 02/12 | [Migração, seção 6](migracao-vpn.md#6-fase-b--rede-do-grupo-atrás-do-gw) |
+| **Apresentação** | **09/12** | 14 |
 
 ### 2. Objetivos
 
@@ -210,7 +211,7 @@ Aplicação em **duas camadas**: Apache com PHP no `www` e MariaDB no `bd` [13, 
 
 O `novato` só envia arquivos para `/srv/sftp/novato/arquivos` no `www`, preso a essa pasta (`ChrootDirectory`) e sem terminal (`ForceCommand internal-sftp`), pelo grupo `sftpusers` do LDAP [12]. Passo a passo na [Aula 11](../Aula11.md).
 
-### 14. Testes e apresentação (02/12)
+### 14. Testes e apresentação (09/12)
 
 Todos os testes são feitos **a partir da VM `cliente`**, ao vivo na apresentação, e registrados no tutorial (comando e saída).
 
@@ -247,7 +248,7 @@ O grupo documenta tudo no **repositório do projeto do grupo no GitHub**, com o 
    - o código da aplicação web, sem o `config.php`;
    - as evidências dos 14 testes da seção 14;
    - os problemas encontrados e como foram resolvidos.
-4. **Apresentação final** em **02/12**, com os testes executados ao vivo. O repositório do grupo deve estar atualizado até o início da aula.
+4. **Apresentação final** em **09/12**, com os testes executados ao vivo. O repositório do grupo deve estar atualizado até o início da aula.
 
 ### Bônus (opcional)
 

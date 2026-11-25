@@ -1,6 +1,6 @@
 # Aula 11: Aplicação Web em Duas Camadas (LAMP) com SFTP e Login do LDAP
 
-Objetivo: montar a aplicação web do grupo em **duas camadas**: o MariaDB no `bd` e o Apache com PHP no `www`. O site chega ao `www` por **SFTP**, com a conta do LDAP, e a área de administração é protegida pelo **LDAP**. Fecha com o **roteiro da apresentação de 02/12**. Corresponde às seções 12, 13 e 14 do [Projeto Final](projeto-final/README.md).
+Objetivo: montar a aplicação web do grupo em **duas camadas**: o MariaDB no `bd` e o Apache com PHP no `www`. O site chega ao `www` por **SFTP**, com a conta do LDAP, e a área de administração é protegida pelo **LDAP**. Fecha com o **roteiro da apresentação de 09/12**. Corresponde às seções 12, 13 e 14 do [Projeto Final](projeto-final/README.md).
 
 **Duração:** 1h30 · **Ambiente:** VirtualBox, as 9 VMs da Etapa 1 · **Base:** Aulas 09 e 10 (DNS do grupo, LDAP, SSSD em todas as VMs e Samba)
 
@@ -17,7 +17,7 @@ Todos os testes são feitos **a partir da VM `cliente`**, pelo nome das VMs.
 | 30–50 min | Prática 2 | Apache e PHP no `www` e envio do site por SFTP (seções 3 e 4) |
 | 50–70 min | Prática 3 | *Virtual host*, área `/admin` com LDAP e testes (seções 5 e 6) |
 | 70–80 min | Prática 4 | SFTP restrito do `novato` (seção 7) |
-| 80–90 min | Apresentação | Roteiro de 02/12 (seção 8) |
+| 80–90 min | Apresentação | Roteiro de 09/12 (seção 8) |
 
 ---
 
@@ -289,7 +289,7 @@ ssh novato@www                         # recusado: só SFTP
 
 ---
 
-## 8. Apresentação de 02/12
+## 8. Apresentação de 09/12
 
 Cada grupo apresenta **ao vivo**, a partir da VM `cliente`, os 14 testes da [seção 14 do enunciado](projeto-final/README.md#14-testes-e-apresentação-0212), nesta ordem. Deixe os comandos prontos num arquivo de texto e as VMs ligadas antes da aula.
 
