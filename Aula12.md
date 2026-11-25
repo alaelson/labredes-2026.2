@@ -1,6 +1,6 @@
 # Aula 12 (extra): Segurança dos Serviços — Chaves SSH, TLS no LDAP, HTTPS, Samba Seguro e DNSSEC
 
-Objetivo: proteger os serviços montados nas Aulas 09 a 11. O grupo troca as senhas do SSH por **chaves**, cria uma **autoridade certificadora (CA)** própria, liga o **TLS** no LDAP (SSSD e Apache inclusos), publica o site em **HTTPS**, endurece o **Samba** e assina a zona do grupo com **DNSSEC**. Tudo é opcional para a apresentação de 02/12 e conta como **bônus** do [Projeto Final](projeto-final/README.md).
+Objetivo: proteger os serviços montados nas Aulas 09 a 11. O grupo troca as senhas do SSH por **chaves**, cria uma **autoridade certificadora (CA)** própria, liga o **TLS** no LDAP (SSSD e Apache inclusos), publica o site em **HTTPS**, endurece o **Samba** e assina a zona do grupo com **DNSSEC**. Tudo é opcional para a apresentação de 09/12 e conta como **bônus** do [Projeto Final](projeto-final/README.md).
 
 **Duração:** 1h30 em sala + continuação pelo grupo · **Ambiente:** as 9 VMs do projeto · **Base:** Aulas 09, 10 e 11 funcionando
 

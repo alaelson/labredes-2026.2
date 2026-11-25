@@ -80,7 +80,7 @@ Os links abaixo apontam para os roteiros detalhados de cada prática realizada e
 11. **[Aula 11: Aplicação Web em Duas Camadas (LAMP) com SFTP e Login do LDAP](Aula11.md)** (25/11)
     *   MariaDB no `bd` aceitando só o `www`; Apache e PHP no `www` com o site demo enviado por SFTP com a conta do LDAP.
     *   *Virtual host* com a área `/admin` autenticada no LDAP pelo grupo `lsor-gX`; SFTP restrito (`chroot`) do `novato`.
-    *   Roteiro da apresentação de 02/12.
+    *   Roteiro da apresentação de 09/12.
 12. **[Aula 12 (extra): Segurança dos Serviços — Chaves SSH, TLS no LDAP, HTTPS, Samba Seguro e DNSSEC](Aula12.md)**
     *   Conceitos de criptografia simétrica e assimétrica, *hash*, assinatura digital, certificado X.509, CA e TLS.
     *   Login por chave Ed25519 no SSH; CA própria do grupo com OpenSSL; StartTLS no OpenLDAP, no SSSD e no Apache, com TLS exigido pelo servidor.
@@ -90,7 +90,7 @@ Os links abaixo apontam para os roteiros detalhados de cada prática realizada e
 
 ### 🧩 Projeto da Disciplina
 *   **[Projeto — Etapa 1: Rede virtualizada com 8 VMs e Gateway NAT](projeto-etapa1/README.md)**: Cada grupo monta uma rede com 8 VMs Ubuntu Server distribuídas em 4 PCs do laboratório e uma VM gateway, todas em modo Placa em Ponte. O Grupo X usa a sub-rede `192.168.26.(16 × X)/28`, e o gateway liga essa rede à rede do laboratório (`172.20.20.0/22`) com encaminhamento de pacotes e NAT. Inclui a padronização de hostnames e FQDN no domínio `grupoX.bsi-26-2.maceio.lab`, do `/etc/hosts` e dos usuários dos integrantes em todas as VMs. Tem como base as Aulas 01 a 08.
-*   **[Projeto Final: Serviços de rede com login unificado](projeto-final/README.md)**: Cada grupo usa as mesmas 9 VMs da Etapa 1, no VirtualBox e na sub-rede `192.168.26.(16 × X)/28`, e implanta DNS primário e secundário (BIND9), diretório OpenLDAP, servidor de arquivos (Samba), banco de dados (MariaDB) e servidor web (Apache e PHP, com envio por SFTP) em VMs separadas. Todas as VMs autenticam no LDAP pelo SSSD, de modo que cada integrante usa uma única conta e senha em todos os serviços. Os testes são feitos a partir da VM `cliente` do grupo. Inclui um [site demo em PHP](projeto-final/site-demo/README.md) com consultas ao banco e área de administração autenticada no LDAP. Apresentação em 02/12.
+*   **[Projeto Final: Serviços de rede com login unificado](projeto-final/README.md)**: Cada grupo usa 7 VMs no LabRedes, acessadas pela VPN, com a sub-rede da Etapa 1 `192.168.26.(16 × X)/28`, e implanta DNS primário e secundário (BIND9), diretório OpenLDAP, servidor de arquivos (Samba), banco de dados (MariaDB) e servidor web (Apache e PHP, com envio por SFTP) em VMs separadas. Todas as VMs autenticam no LDAP pelo SSSD, de modo que cada integrante usa uma única conta e senha em todos os serviços. Os testes são feitos do computador do aluno, pela VPN, nas VMs do LabRedes ([plano de migração](projeto-final/migracao-vpn.md)). Inclui um [site demo em PHP](projeto-final/site-demo/README.md) com consultas ao banco e área de administração autenticada no LDAP. Apresentação em 09/12.
 
 > 💡 **Dica para o Projeto — [VM base enxuta: reduzir, exportar e clonar as VMs](Roteiro-Reduzir-VM.md).** Em vez de instalar o Ubuntu 9 vezes, prepare e reduza **uma única VM base**, exporte um `.ova` de cerca de 1 GB, importe nos outros PCs do grupo e crie a segunda VM de cada PC (e o gateway no PC1) como **clone vinculado**. O roteiro também mostra como dar identidade própria a cada VM (hostname, `machine-id` e chaves SSH).
 
