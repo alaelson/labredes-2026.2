@@ -20,6 +20,7 @@ O ponto central do projeto é o **login unificado**: cada integrante tem **uma �
 
 | Aula de apoio | Data | Seções do projeto |
 |:--|:--|:--|
+| [Aula 06: Configuração de Interface de Rede Estática com Netplan](../Aula6.md) | 23/07 | 5 |
 | [Aula 09: DNS do grupo](../Aula9.md) | 11/11 | 7 e 8 |
 | [Aula 10: LDAP, login unificado e Samba](../Aula10.md) | 18/11 | 9, 10 e 11 |
 | [Aula 11: Aplicação web (LAMP) e SFTP](../Aula11.md) | 25/11 | 12 e 13 |
