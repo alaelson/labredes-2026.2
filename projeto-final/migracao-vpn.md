@@ -178,7 +178,15 @@ ssh fulano.tal@www.grupo1.bsi-26-2.maceio.lab
 curl -s http://www.grupo1.bsi-26-2.maceio.lab/
 ```
 
-No Windows, o `dig` não vem instalado: use `nslookup www.grupo1.bsi-26-2.maceio.lab`. O Samba é testado pelo Explorador de Arquivos (`\\samba.grupo1.bsi-26-2.maceio.lab\publico`) ou pelo `smbclient`, no Linux e no macOS.
+Com a VPN, só os nomes do LabRedes vão para os DNS da VPN (**DNS dividido**); o resto segue pelo DNS da sua rede. Alguns comandos de diagnóstico ignoram essa divisão e perguntam direto ao roteador da sua casa, que responde que o nome não existe. Teste os nomes assim:
+
+| Sistema | Use | Evite (sem `@servidor`) |
+|:--|:--|:--|
+| Linux | `dig`, `resolvectl query <nome>`, `ping` | — |
+| macOS | `ping`, `dscacheutil -q host -a name <nome>` | `dig`, `nslookup`, `host` |
+| Windows | `ping`, `Resolve-DnsName <nome>` (PowerShell) | `nslookup` |
+
+Para testar um servidor específico, informe-o: `dig @10.26.2.102 www.grupo1.bsi-26-2.maceio.lab` funciona em qualquer sistema. O Samba é testado pelo Explorador de Arquivos (`\\samba.grupo1.bsi-26-2.maceio.lab\publico`) ou pelo `smbclient`, no Linux e no macOS.
 
 Os testes que precisam de um cliente dentro da rede do grupo (por exemplo, `ldapsearch` e o `SELECT` no banco) são feitos por SSH em uma das VMs.
 
